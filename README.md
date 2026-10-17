@@ -141,5 +141,6 @@ Large generated CAD and firmware bundles live in [versioned Releases](https://gi
 
 ---
 
-**Primadon · Tacpad 9 / Model Nine**  
+**Primadon · Tacpad 9 / Model Nine**
+
 Industrial design exploration, embedded firmware and reproducible CAD. Team mascot supplied by Primadon. Third-party tools and libraries retain their own licenses and notices.

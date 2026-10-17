@@ -1,8 +1,8 @@
 """Build and photograph Tacpad 9 / MODEL NINE by Primadon in Blender 4.x.
 
-Run beside tacpad9_blender.py: blender -b --python tacpad9_render.py
+Run: blender -b --python mechanical/render.py
 Use -- --preview for a quick lighting proof, or -- --setup-only to skip renders.
-Final .blend, 1:1 / 16:9 PNGs and mesh exports go to renders/primadon/.
+Final .blend, 1:1 / 16:9 PNGs and mesh exports go to mechanical/exports/.
 """
 
 import math
@@ -17,8 +17,8 @@ from mathutils import Vector
 
 
 HERE = Path(__file__).resolve().parent
-OUT = HERE / "renders" / "primadon"
-LOGO_PATH = HERE / "assets" / "primadon-logo.png"
+OUT = HERE / "exports"
+LOGO_PATH = HERE.parent / "docs" / "assets" / "primadon-logo.png"
 PREVIEW = "--preview" in sys.argv
 SETUP_ONLY = "--setup-only" in sys.argv
 STUDIO_TAG = "tacpad9_studio"
@@ -139,6 +139,13 @@ def team_logo(target, location, height=10.4):
 def oled_pixels(target, mat, p):
     # Native 128 x 32 raster, each pixel is a tiny emissive quad, 0.25 mm pitch.
     glyphs = {
+        "E": ("11111", "10000", "10000", "11110", "10000", "10000", "11111"),
+        "H": ("10001", "10001", "10001", "11111", "10001", "10001", "10001"),
+        "S": ("01111", "10000", "10000", "01110", "00001", "00001", "11110"),
+        "U": ("10001", "10001", "10001", "10001", "10001", "10001", "01110"),
+        "B": ("11110", "10001", "10001", "11110", "10001", "10001", "11110"),
+        ":": ("0", "1", "1", "0", "1", "1", "0"),
+        "Y": ("10001", "10001", "01010", "00100", "00100", "00100", "00100"),
         "P": ("11110", "10001", "10001", "11110", "10000", "10000", "10000"),
         "R": ("11110", "10001", "10001", "11110", "10100", "10010", "10001"),
         "I": ("111", "010", "010", "010", "010", "010", "111"),
@@ -167,17 +174,14 @@ def oled_pixels(target, mat, p):
                         pixels.add((x + column, y + row))
             x += len(glyph[0]) + 1
 
-    text("TACPAD 9", 3, 3)
-    text("MACRO", 94, 3)
-    text("VOL 55%", 3, 22)
-    for x in range(3, 125):
-        if x % 2 == 0:
-            pixels.add((x, 15))
-    for x in range(64, 124):
-        for y in range(22, 28):
-            if x in (64, 123) or y in (22, 27) or (67 <= x <= 96 and 24 <= y <= 25):
-                pixels.add((x, y))
-    pitch = (p["oled_width"] - 6) / 128
+    text("TACPAD 9", 0, 0)
+    text("MACRO", 98, 0)
+    text("READY", 0, 12)
+    text("USB", 104, 12)
+    text("ENC: HOST VOLUME", 0, 24)
+    for x in range(128):
+        pixels.add((x, 9))
+    pitch = p["display_active_width"] / 128
     left, top = p["oled_x"] - 64 * pitch, p["header_y"] + 16 * pitch
     z = p["height"] - 0.35 + 0.048
     vertices, faces = [], []
@@ -190,7 +194,7 @@ def oled_pixels(target, mat, p):
     mesh = bpy.data.meshes.new("OLED / 128x32 luminous pixels")
     mesh.from_pydata(vertices, [], faces)
     mesh.update()
-    obj = bpy.data.objects.new("OLED / Tacpad 9 + MACRO + volume 55%", mesh)
+    obj = bpy.data.objects.new("OLED / Tacpad 9 native USB control", mesh)
     target.objects.link(obj)
     obj[STUDIO_TAG] = True
     mesh.materials.append(mat)
@@ -224,9 +228,9 @@ def camera(name, location, target, collection, lens=65, ortho=None):
 
 
 def build_studio():
-    model = runpy.run_path(str(HERE / "tacpad9_blender.py"), run_name="tacpad9_model")
+    model = runpy.run_path(str(HERE / "model.py"), run_name="tacpad9_model")
     p = model["P"]
-    p["case_color"] = (0.53, 0.56, 0.57, 1)
+    p["case_color"] = (0.35, 0.38, 0.39, 1)
     p["key_color"] = (0.76, 0.75, 0.69, 1)
     scene = bpy.data.scenes.new("Tacpad 9 / Primadon Studio")
     scene[STUDIO_TAG] = True
@@ -245,7 +249,8 @@ def build_studio():
     shader_of(keys).inputs["Specular IOR Level"].default_value = 0.28
     microtexture(case, 190, 0.10, 0.018)
     microtexture(keys, 140, 0.075, 0.012)
-    ink = mat("Studio / charcoal pad print", (0.018, 0.026, 0.029, 1), roughness=0.48)
+    ink = mat("Studio / charcoal pad print", (0.003, 0.005, 0.006, 1), roughness=0.65)
+    shader_of(ink).inputs["Specular IOR Level"].default_value = 0.08
     accent = mat("Studio / Primadon moss green keycap", (0.075, 0.17, 0.085, 1), roughness=0.43)
     shader_of(accent).inputs["Specular IOR Level"].default_value = 0.28
     microtexture(accent, 140, 0.075, 0.012)
@@ -261,7 +266,7 @@ def build_studio():
     mono, sans = load_font("consola.ttf"), load_font("arialbd.ttf")
     cap_objects = sorted((o for o in root.all_objects if o.name.startswith("Keycap")), key=lambda o:o.name)
     names = ["COPY", "PASTE", "BUILD", "BLENDER", "UNDO", "REDO", "PLAY", "MUTE", "TERMINAL"]
-    top = p["height"] - p["recess_depth"] + 1.4 + p["key_height"]
+    top = p["height"] - p["recess_depth"] + p["switch_travel"] + p["pressed_gap"] + p["key_height"]
     for i, (cap, name) in enumerate(zip(cap_objects, names), 1):
         if i == 5:
             cap.data = cap.data.copy()
@@ -276,24 +281,6 @@ def build_studio():
     label("DESIGNED BY THE TEAM", (28.6, -54.0, p["height"]+0.025), 0.70, ink, mono, print_col, align="RIGHT")
     oled_pixels(print_col, emit, p)
     assembly = next(o for o in root.all_objects if o.type == "EMPTY")
-    for x in (-35.5, 35.5):
-        for y in (-52.5, 52.5):
-            bpy.ops.mesh.primitive_cylinder_add(vertices=48, radius=1.40, depth=0.28, location=(x, y, p["height"]-0.02))
-            screw = model["move_to"](bpy.context.object, hardware)
-            screw.name = f"Fastener / {x:g} {y:g}"
-            screw.data.materials.append(steel)
-            model["bevel"](screw, 0.10, 4)
-            slot = model["box"]("Cutter / screw drive", (1.65, 0.35, 0.3), (x, y, p["height"]+0.15), 0.08, hardware)
-            model["subtract"](screw, slot)
-            model["finish"](screw)
-            screw.parent = assembly
-            bpy.ops.mesh.primitive_cylinder_add(vertices=64, radius=4, depth=1.1, location=(x, y, -0.45))
-            foot = model["move_to"](bpy.context.object, hardware)
-            foot.name = f"Silicone foot / {x:g} {y:g}"
-            foot.data.materials.append(rubber)
-            model["bevel"](foot, 0.35, 6)
-            model["finish"](foot)
-            foot.parent = assembly
     for obj in print_col.objects:
         obj.parent = assembly
     # A broad seamless studio floor; all lighting is generated locally.
@@ -353,7 +340,7 @@ def main():
     scene.render.resolution_x, scene.render.resolution_y = shots[0][2:]
     scene.render.resolution_percentage = 100
     scene.render.filepath = str(OUT / (shots[0][1]+".png"))
-    for filename in ("tacpad9_blender.py", "tacpad9_render.py"):
+    for filename in ("model.py", "render.py"):
         text = bpy.data.texts.load(str(HERE / filename))
         text.use_fake_user = True
     bpy.ops.file.pack_all()
@@ -373,7 +360,7 @@ def main():
         print("TACPAD PHOTO:", name, flush=True)
         bpy.ops.render.render(write_still=True)
     if not PREVIEW:
-        model["export_model"](str(OUT / "exports"), stl=True, obj=True)
+        model["export_model"](str(OUT / "parts"), stl=True, obj=True, separate_stl=True)
         scene.camera = shots[0][0]
         scene.render.resolution_x, scene.render.resolution_y = shots[0][2:]
         scene.render.filepath = str(OUT / (shots[0][1]+".png"))
