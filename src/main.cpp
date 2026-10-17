@@ -5,12 +5,13 @@
 #include <Adafruit_SSD1306.h>
 #include "tictactoe.h"
 
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 32
+
 namespace {
 constexpr uint8_t KeyPins[9] = {13, 12, 14, 27, 26, 25, 33, 15, 16};
 constexpr uint8_t EncoderDT = 34, EncoderCLK = 35, EncoderSW = 32;
-constexpr uint8_t OledSDA = 21, OledSCL = 22, OledAddress = 0x3C;
-constexpr int ScreenWidth = 128, ScreenHeight = 64;
-constexpr int BoardX = 0, BoardY = 15, CellSize = 16;
+constexpr int BoardX = 0, BoardY = 8, CellSize = 8;
 constexpr uint32_t DebounceMs = 20, HoldMs = 1500, HighlightMs = 140;
 constexpr uint32_t TransitionMs = 240, ResultFrameMs = 300, FrameMs = 33;
 const char* const Labels[9] = {
@@ -21,7 +22,7 @@ const char* const Shortcuts[9] = {
     "CTRL+Y", "MEDIA PLAY/PAUSE", "MEDIA MUTE", "CTRL+`"
 };
 
-Adafruit_SSD1306 display(ScreenWidth, ScreenHeight, &Wire, -1, 400000, 400000);
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1, 400000, 400000);
 
 struct Button {
     uint8_t pin = 0;
@@ -98,67 +99,62 @@ void textAt(int x, int y, const char* text, uint16_t color = SSD1306_WHITE) {
 }
 
 void drawMacro() {
-    textAt(0, 15, "MODE: MACRO PAD");
     if (lastMacro < 0) {
-        textAt(0, 27, "KEYS 1-9: READY");
+        textAt(0, 12, "KEYS 1-9 READY");
     } else {
         char line[24];
-        snprintf(line, sizeof(line), "KEY %d: %s", lastMacro + 1, Labels[lastMacro]);
-        if (macroFlash) display.fillRect(0, 25, ScreenWidth, 11, SSD1306_WHITE);
-        textAt(0, 27, line, macroFlash ? SSD1306_BLACK : SSD1306_WHITE);
+        snprintf(line, sizeof(line), "%d:%s", lastMacro + 1, Labels[lastMacro]);
+        if (macroFlash) display.fillRect(0, 11, 100, 10, SSD1306_WHITE);
+        textAt(0, 12, line, macroFlash ? SSD1306_BLACK : SSD1306_WHITE);
     }
-    char level[20];
-    snprintf(level, sizeof(level), "VOLUME: %3d%%", volume);
-    textAt(0, 38, level);
-    display.drawRect(0, 48, ScreenWidth, 6, SSD1306_WHITE);
-    display.fillRect(2, 50, (ScreenWidth - 4) * volume / 100, 2, SSD1306_WHITE);
-    textAt(0, 56, "HOLD 1.5s: XO");
+    char level[8];
+    snprintf(level, sizeof(level), "%3d%%", volume);
+    textAt(104, 12, level);
+    display.drawRect(0, 24, SCREEN_WIDTH, 7, SSD1306_WHITE);
+    display.fillRect(2, 26, (SCREEN_WIDTH - 4) * volume / 100, 3, SSD1306_WHITE);
 }
 
 void drawGame() {
     display.drawRect(BoardX, BoardY, CellSize * 3, CellSize * 3, SSD1306_WHITE);
     for (int i = 1; i <= 2; ++i) {
-        display.drawFastVLine(BoardX + i * CellSize, BoardY, 48, SSD1306_WHITE);
-        display.drawFastHLine(BoardX, BoardY + i * CellSize, 48, SSD1306_WHITE);
+        display.drawFastVLine(BoardX + i * CellSize, BoardY, CellSize * 3, SSD1306_WHITE);
+        display.drawFastHLine(BoardX, BoardY + i * CellSize, CellSize * 3, SSD1306_WHITE);
     }
     for (int i = 0; i < 9; ++i) {
         const int x = BoardX + (i % 3) * CellSize;
         const int y = BoardY + (i / 3) * CellSize;
         if (board[i] == TicTacToe::Player) {
-            display.drawLine(x + 4, y + 4, x + 12, y + 12, SSD1306_WHITE);
-            display.drawLine(x + 12, y + 4, x + 4, y + 12, SSD1306_WHITE);
+            display.drawLine(x + 2, y + 2, x + 6, y + 6, SSD1306_WHITE);
+            display.drawLine(x + 6, y + 2, x + 2, y + 6, SSD1306_WHITE);
         } else if (board[i] == TicTacToe::AI) {
-            display.drawCircle(x + 8, y + 8, 5, SSD1306_WHITE);
-        } else {
-            char number[2] = {char('1' + i), '\0'};
-            textAt(x + 6, y + 4, number);
+            display.drawCircle(x + 4, y + 4, 2, SSD1306_WHITE);
         }
     }
 
     const bool finished = gameResult != TicTacToe::Empty;
-    textAt(56, 15, finished ? "ANY: NEW" : "XO VS AI");
     const char* status = !finished ? "YOUR TURN" :
         gameResult == TicTacToe::Player ? "PLAYER WINS!" :
         gameResult == TicTacToe::AI ? "AI WINS!" : "DRAW GAME!";
     if (finished && resultBright)
-        display.fillRect(54, 24, 74, 10, SSD1306_WHITE);
-    textAt(56, 25, status, finished && resultBright ? SSD1306_BLACK : SSD1306_WHITE);
+        display.fillRect(30, 8, 98, 8, SSD1306_WHITE);
+    textAt(32, 8, status, finished && resultBright ? SSD1306_BLACK : SSD1306_WHITE);
 
-    char score[16];
-    snprintf(score, sizeof(score), "YOU:%u", unsigned(playerScore));
-    textAt(56, 36, score);
-    snprintf(score, sizeof(score), "AI :%u", unsigned(aiScore));
-    textAt(56, 46, score);
-    snprintf(score, sizeof(score), "DRAW:%u", unsigned(drawScore));
-    textAt(56, 56, score);
+    char score[24];
+    snprintf(score, sizeof(score), "X:%u O:%u", unsigned(playerScore), unsigned(aiScore));
+    textAt(32, 16, score);
+    snprintf(score, sizeof(score), "D:%u %s", unsigned(drawScore), finished ? "NEW:ANY" : "KEY:1-9");
+    textAt(32, 24, score);
 }
 
 void renderScreen() {
     if (!displayReady) return;
     display.clearDisplay();
-    textAt(0, 1, "PRIMADON | TacPad");
-    if (!transitioning || (transitionFrame & 1) == 0)
-        display.drawFastHLine(0, 11, ScreenWidth, SSD1306_WHITE);
+    const bool flashHeader = transitioning && (transitionFrame & 1) != 0;
+    if (flashHeader) display.fillRect(0, 0, SCREEN_WIDTH, 8, SSD1306_WHITE);
+    const uint16_t headerColor = flashHeader ? SSD1306_BLACK : SSD1306_WHITE;
+    textAt(0, 0, "PRIMADON", headerColor);
+    textAt(98, 0, gameMode ? "XO AI" : "MACRO", headerColor);
+    if (!gameMode) display.drawFastHLine(0, 9, SCREEN_WIDTH, SSD1306_WHITE);
     if (gameMode) drawGame();
     else drawMacro();
     display.display();
@@ -227,21 +223,21 @@ void setup() {
     attachInterrupt(digitalPinToInterrupt(EncoderCLK), readEncoder, CHANGE);
     attachInterrupt(digitalPinToInterrupt(EncoderDT), readEncoder, CHANGE);
 
-    Wire.begin(OledSDA, OledSCL);
+    Wire.begin(21, 22);
     Wire.setClock(400000);
-    Wire.setTimeOut(20);
-    Wire.beginTransmission(OledAddress);
-    if (Wire.endTransmission() == 0)
-        displayReady = display.begin(SSD1306_SWITCHCAPVCC, OledAddress, true, false);
+    Wire.setTimeOut(50);
+    // Always initialize the controller. A separate address-only probe must not
+    // prevent the SSD1306 init sequence from ever reaching the display.
+    displayReady = display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
     if (!displayReady)
-        Serial.println("OLED ERROR: check SSD1306 0x3C, SDA=21, SCL=22. Serial controls remain active.");
+        Serial.println("OLED ERROR: framebuffer allocation failed. Serial controls remain active.");
     display.setTextSize(1);
     display.setTextWrap(false);
     resetGame();
     renderScreen();
     lastFrameAt = millis();
     screenDirty = false;
-    Serial.println("PRIMADON | TacPad-9 | READY | MACRO PAD | OLED 128x64");
+    Serial.println("PRIMADON | TacPad-9 | READY | MACRO PAD | OLED 128x32");
     Serial.println("Hold encoder SW for 1500ms to switch modes.");
     Serial.println("VOLUME: 50%");
 }
