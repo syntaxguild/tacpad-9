@@ -1,4 +1,4 @@
-"""Build and photograph TacPad-9 in Blender 4.x (no external packages).
+"""Build and photograph Tacpad 9 in Blender 4.x (no external packages).
 
 Run beside tacpad9_blender.py: blender -b --python tacpad9_render.py
 Use -- --preview for a quick lighting proof, or -- --setup-only to skip renders.
@@ -99,6 +99,8 @@ def oled_pixels(target, mat, p):
         "V": ("10001", "10001", "10001", "10001", "10001", "01010", "00100"),
         "L": ("10000", "10000", "10000", "10000", "10000", "10000", "11111"),
         "5": ("11111", "10000", "10000", "11110", "00001", "00001", "11110"),
+        "9": ("01110", "10001", "10001", "01111", "00001", "00001", "11110"),
+        "T": ("11111", "00100", "00100", "00100", "00100", "00100", "00100"),
         "%": ("11001", "11010", "00100", "00100", "01000", "10110", "00110"),
         " ": ("000",) * 7,
     }
@@ -113,7 +115,7 @@ def oled_pixels(target, mat, p):
                         pixels.add((x + column, y + row))
             x += len(glyph[0]) + 1
 
-    text("PRIMADON", 3, 3)
+    text("TACPAD 9", 3, 3)
     text("MACRO", 94, 3)
     text("VOL 55%", 3, 22)
     for x in range(3, 125):
@@ -136,7 +138,7 @@ def oled_pixels(target, mat, p):
     mesh = bpy.data.meshes.new("OLED / 128x32 luminous pixels")
     mesh.from_pydata(vertices, [], faces)
     mesh.update()
-    obj = bpy.data.objects.new("OLED / PRIMADON + MACRO + volume 55%", mesh)
+    obj = bpy.data.objects.new("OLED / Tacpad 9 + MACRO + volume 55%", mesh)
     target.objects.link(obj)
     obj[STUDIO_TAG] = True
     mesh.materials.append(mat)
@@ -174,7 +176,7 @@ def build_studio():
     p = model["P"]
     p["case_color"] = (0.53, 0.56, 0.57, 1)
     p["key_color"] = (0.76, 0.75, 0.69, 1)
-    scene = bpy.data.scenes.new("TacPad-9 / Product Studio")
+    scene = bpy.data.scenes.new("Tacpad 9 / Product Studio")
     scene[STUDIO_TAG] = True
     bpy.context.window.scene = scene
     root = model["build"]()
@@ -215,9 +217,9 @@ def build_studio():
         color = accent_ink if i == 5 else ink
         label(name, (cap.location.x, cap.location.y-1.0, top+0.5), 1.95 if len(name) < 7 else 1.65, color, mono, print_col, surface=cap)
         label(f"{i:02d}", (cap.location.x-5.0, cap.location.y+4.5, top+0.5), 1.05, color, mono, print_col, surface=cap)
-    label("PRIMADON", (-29.5, -52, p["height"]+0.025), 3.0, ink, sans, print_col, align="LEFT")
-    label("TACTILE CONTROL SYSTEM", (-29.4, -55, p["height"]+0.025), 0.90, ink, mono, print_col, align="LEFT")
-    label("TACPAD / 09", (28.6, -52.2, p["height"]+0.025), 1.4, ink, mono, print_col, align="RIGHT")
+    label("Tacpad 9", (-29.5, -52, p["height"]+0.025), 3.0, ink, sans, print_col, align="LEFT")
+    label("MODEL NINE", (-29.4, -55, p["height"]+0.025), 0.90, ink, mono, print_col, align="LEFT")
+    label("PRIMADON", (28.6, -52.2, p["height"]+0.025), 1.4, ink, mono, print_col, align="RIGHT")
     oled_pixels(print_col, emit, p)
     assembly = next(o for o in root.all_objects if o.type == "EMPTY")
     for x in (-35.5, 35.5):
@@ -287,9 +289,9 @@ def build_studio():
     assert len(cap_objects) == 9 and all(n in bpy.data.objects for n in (hero.name, overhead.name, detail.name))
     body = next(o for o in root.all_objects if o.name.startswith("Enclosure"))
     assert all(abs(a-b) < 0.001 for a,b in zip(body.dimensions, (85,120,22)))
-    return scene, model, [(hero, "TacPad-9_01_Hero", 2400, 1800),
-                          (overhead, "TacPad-9_02_Top", 2000, 2200),
-                          (detail, "TacPad-9_03_Detail", 2400, 1800)]
+    return scene, model, [(hero, "Tacpad 9_01_Hero", 2400, 1800),
+                          (overhead, "Tacpad 9_02_Top", 2000, 2200),
+                          (detail, "Tacpad 9_03_Detail", 2400, 1800)]
 
 
 def main():
@@ -303,7 +305,7 @@ def main():
         text.use_fake_user = True
     bpy.ops.file.pack_all()
     bpy.context.preferences.filepaths.save_version = 0
-    project = OUT / "TacPad-9_Studio.blend"
+    project = OUT / "Tacpad 9_Studio.blend"
     bpy.ops.wm.save_as_mainfile(filepath=str(project))
     if SETUP_ONLY:
         return

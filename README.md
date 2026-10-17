@@ -1,4 +1,4 @@
-# PRIMADON | TacPad-9
+# Tacpad 9 | Primadon
 
 ESP32 9-Key Macro Pad + Tic-Tac-Toe พร้อม Minimax AI ที่ไม่มีวันแพ้เมื่อผู้เล่นเริ่มก่อน
 เฟิร์มแวร์เป็น Arduino C++ ใช้ PlatformIO และ Wokwi ใน VS Code

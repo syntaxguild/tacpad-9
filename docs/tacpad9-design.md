@@ -1,4 +1,4 @@
-# TacPad-9 product design
+# Tacpad 9 / Model Nine product design
 
 The parametric Blender 4.x source is [tacpad9_blender.py](../tacpad9_blender.py).
 The product studio is built by [tacpad9_render.py](../tacpad9_render.py).

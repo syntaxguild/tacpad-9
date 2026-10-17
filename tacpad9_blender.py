@@ -1,4 +1,4 @@
-"""TacPad-9 / PRIMADON -- paste into Blender's Scripting tab and Run Script.
+"""Tacpad 9 / PRIMADON -- paste into Blender's Scripting tab and Run Script.
 
 All dimensions below are millimetres; +Y is the header, +Z is up.
 Change P and rerun to rebuild only this script's generated objects.
@@ -253,7 +253,7 @@ def export_model(directory="", stl=True, obj=False, separate_stl=False):
     Existing files with these generated names are overwritten.
     """
     base = bpy.path.abspath("//") if bpy.data.filepath else tempfile.gettempdir()
-    folder = bpy.path.abspath(directory) if directory else os.path.join(base, "TacPad-9_exports")
+    folder = bpy.path.abspath(directory) if directory else os.path.join(base, "Tacpad 9_exports")
     os.makedirs(folder, exist_ok=True)
     objects = sorted((o for o in bpy.context.scene.objects
                       if o.get(TAG) and o.type == "MESH"), key=lambda o: o.name)
@@ -261,7 +261,7 @@ def export_model(directory="", stl=True, obj=False, separate_stl=False):
         raise RuntimeError("Run build() before exporting.")
     paths = []
     if stl:
-        groups = [([o], o.name.split(" / ")[0]) for o in objects] if separate_stl else [(objects, "TacPad-9")]
+        groups = [([o], o.name.split(" / ")[0]) for o in objects] if separate_stl else [(objects, "Tacpad 9")]
         depsgraph = bpy.context.evaluated_depsgraph_get()
         # Binary STL via Python stdlib: also works in Blender 4.0, whose STL
         # exporter is an optional bundled add-on rather than a built-in operator.
@@ -269,7 +269,7 @@ def export_model(directory="", stl=True, obj=False, separate_stl=False):
             path = os.path.join(folder, name.replace("/", "_") + ".stl")
             count = 0
             with open(path, "wb") as stream:
-                stream.write(b"TacPad-9 | millimetres".ljust(80, b"\0"))
+                stream.write(b"Tacpad 9 | millimetres".ljust(80, b"\0"))
                 stream.write(struct.pack("<I", 0))
                 for source in group:
                     evaluated = source.evaluated_get(depsgraph)
@@ -295,7 +295,7 @@ def export_model(directory="", stl=True, obj=False, separate_stl=False):
             for source in objects:
                 source.select_set(True)
             bpy.context.view_layer.objects.active = objects[0]
-            path = os.path.join(folder, "TacPad-9.obj")
+            path = os.path.join(folder, "Tacpad 9.obj")
             bpy.ops.wm.obj_export(
                 filepath=path, check_existing=False, export_selected_objects=True,
                 apply_modifiers=True, global_scale=1.0,
@@ -308,7 +308,7 @@ def export_model(directory="", stl=True, obj=False, separate_stl=False):
                 source.select_set(True)
             bpy.context.view_layer.objects.active = active
     for path in paths:
-        print("TacPad-9 exported:", path)
+        print("Tacpad 9 exported:", path)
     return paths
 
 
@@ -322,7 +322,7 @@ def build():
     for old in list(bpy.context.scene.objects):
         if old.get(TAG):
             remove_object(old)
-    root = collection("TacPad-9", bpy.context.scene.collection)
+    root = collection("Tacpad 9", bpy.context.scene.collection)
     body_col = collection("01 / Enclosure", root)
     header_col = collection("02 / Header", root)
     keys_col = collection("03 / Keycaps", root)
@@ -384,7 +384,7 @@ def build():
         other.name = f"Keycap {index:02d}"
         keys_col.objects.link(other)
         other.location.x, other.location.y = x, y
-    assembly = bpy.data.objects.new("TacPad-9 / Assembly", None)
+    assembly = bpy.data.objects.new("Tacpad 9 / Assembly", None)
     root.objects.link(assembly)
     assembly[TAG] = True
     assembly.empty_display_size = 10
@@ -414,7 +414,7 @@ def build():
                         break
     if EXPORT_STL or EXPORT_OBJ:
         export_model(EXPORT_DIRECTORY, EXPORT_STL, EXPORT_OBJ)
-    print(f"TacPad-9 built: enclosure {w:g} x {length:g} x {h:g} mm; nine keys on {P['pitch']:g} mm pitch.")
+    print(f"Tacpad 9 built: enclosure {w:g} x {length:g} x {h:g} mm; nine keys on {P['pitch']:g} mm pitch.")
     return root
 
 
