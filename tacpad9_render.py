@@ -1,8 +1,8 @@
-"""Build and photograph Tacpad 9 in Blender 4.x (no external packages).
+"""Build and photograph Tacpad 9 / MODEL NINE by Primadon in Blender 4.x.
 
 Run beside tacpad9_blender.py: blender -b --python tacpad9_render.py
 Use -- --preview for a quick lighting proof, or -- --setup-only to skip renders.
-Final .blend, three PNG photographs and mesh exports are written to renders/.
+Final .blend, 1:1 / 16:9 PNGs and mesh exports go to renders/primadon/.
 """
 
 import math
@@ -17,7 +17,8 @@ from mathutils import Vector
 
 
 HERE = Path(__file__).resolve().parent
-OUT = HERE / "renders"
+OUT = HERE / "renders" / "primadon"
+LOGO_PATH = HERE / "assets" / "primadon-logo.png"
 PREVIEW = "--preview" in sys.argv
 SETUP_ONLY = "--setup-only" in sys.argv
 STUDIO_TAG = "tacpad9_studio"
@@ -81,6 +82,57 @@ def label(body, location, size, mat, font, target, align="CENTER", surface=None)
         mod.use_positive_direction = False
         mod.offset = 0.016
         bpy.ops.object.modifier_apply(modifier=mod.name)
+    return obj
+
+
+def team_logo(target, location, height=10.4):
+    """Use the original RGBA file as pad print; keep crisp pixel-art edges."""
+    image = bpy.data.images.load(str(LOGO_PATH), check_existing=True)
+    image.colorspace_settings.name = "sRGB"
+    width_px, height_px = image.size
+    alpha = list(image.pixels)[3::4]
+    visible = [i for i, a in enumerate(alpha) if a > 0.01]
+    if not visible:
+        raise ValueError("The Primadon logo is completely transparent.")
+    xmin = min(i % width_px for i in visible)
+    xmax = max(i % width_px for i in visible) + 1
+    ymin = min(i // width_px for i in visible)
+    ymax = max(i // width_px for i in visible) + 1
+    width = height * (xmax - xmin) / (ymax - ymin)
+    mesh = bpy.data.meshes.new("Primadon / pixel mascot print")
+    mesh.from_pydata([(-width/2, -height/2, 0), (width/2, -height/2, 0),
+                      (width/2, height/2, 0), (-width/2, height/2, 0)], [], [(0,1,2,3)])
+    uv = mesh.uv_layers.new(name="Original logo / visible alpha bounds")
+    coords = [(xmin/width_px, ymin/height_px), (xmax/width_px, ymin/height_px),
+              (xmax/width_px, ymax/height_px), (xmin/width_px, ymax/height_px)]
+    for loop, coord in zip(uv.data, coords):
+        loop.uv = coord
+    mesh.update()
+    mat = bpy.data.materials.new("Primadon / original full-colour logo")
+    mat.use_nodes = True
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    nodes.clear()
+    texture = nodes.new("ShaderNodeTexImage")
+    texture.image = image
+    texture.interpolation = "Closest"
+    texture.extension = "CLIP"
+    ink = nodes.new("ShaderNodeBsdfPrincipled")
+    ink.inputs["Roughness"].default_value = 0.48
+    ink.inputs["Specular IOR Level"].default_value = 0.25
+    transparent = nodes.new("ShaderNodeBsdfTransparent")
+    mix = nodes.new("ShaderNodeMixShader")
+    output = nodes.new("ShaderNodeOutputMaterial")
+    links.new(texture.outputs["Color"], ink.inputs["Base Color"])
+    links.new(texture.outputs["Alpha"], mix.inputs[0])
+    links.new(transparent.outputs[0], mix.inputs[1])
+    links.new(ink.outputs["BSDF"], mix.inputs[2])
+    links.new(mix.outputs[0], output.inputs["Surface"])
+    obj = bpy.data.objects.new("Primadon / supplied team logo", mesh)
+    target.objects.link(obj)
+    obj[STUDIO_TAG] = True
+    obj.location = location
+    mesh.materials.append(mat)
+    image.pack()
     return obj
 
 
@@ -176,7 +228,7 @@ def build_studio():
     p = model["P"]
     p["case_color"] = (0.53, 0.56, 0.57, 1)
     p["key_color"] = (0.76, 0.75, 0.69, 1)
-    scene = bpy.data.scenes.new("Tacpad 9 / Product Studio")
+    scene = bpy.data.scenes.new("Tacpad 9 / Primadon Studio")
     scene[STUDIO_TAG] = True
     bpy.context.window.scene = scene
     root = model["build"]()
@@ -194,7 +246,7 @@ def build_studio():
     microtexture(case, 190, 0.10, 0.018)
     microtexture(keys, 140, 0.075, 0.012)
     ink = mat("Studio / charcoal pad print", (0.018, 0.026, 0.029, 1), roughness=0.48)
-    accent = mat("Studio / burnt orange keycap", (0.36, 0.065, 0.012, 1), roughness=0.43)
+    accent = mat("Studio / Primadon moss green keycap", (0.075, 0.17, 0.085, 1), roughness=0.43)
     shader_of(accent).inputs["Specular IOR Level"].default_value = 0.28
     microtexture(accent, 140, 0.075, 0.012)
     accent_ink = mat("Studio / ivory pad print", (0.88, 0.83, 0.70, 1), roughness=0.45)
@@ -217,9 +269,11 @@ def build_studio():
         color = accent_ink if i == 5 else ink
         label(name, (cap.location.x, cap.location.y-1.0, top+0.5), 1.95 if len(name) < 7 else 1.65, color, mono, print_col, surface=cap)
         label(f"{i:02d}", (cap.location.x-5.0, cap.location.y+4.5, top+0.5), 1.05, color, mono, print_col, surface=cap)
-    label("Tacpad 9", (-29.5, -52, p["height"]+0.025), 3.0, ink, sans, print_col, align="LEFT")
-    label("MODEL NINE", (-29.4, -55, p["height"]+0.025), 0.90, ink, mono, print_col, align="LEFT")
-    label("PRIMADON", (28.6, -52.2, p["height"]+0.025), 1.4, ink, mono, print_col, align="RIGHT")
+    team_logo(print_col, (-28.0, -52.1, p["height"]+0.030))
+    label("Tacpad 9", (-19.3, -50.6, p["height"]+0.025), 3.7, ink, sans, print_col, align="LEFT")
+    label("MODEL NINE", (-19.1, -54.1, p["height"]+0.025), 1.10, ink, mono, print_col, align="LEFT")
+    label("PRIMADON", (28.7, -51.7, p["height"]+0.025), 1.50, ink, sans, print_col, align="RIGHT")
+    label("DESIGNED BY THE TEAM", (28.6, -54.0, p["height"]+0.025), 0.70, ink, mono, print_col, align="RIGHT")
     oled_pixels(print_col, emit, p)
     assembly = next(o for o in root.all_objects if o.type == "EMPTY")
     for x in (-35.5, 35.5):
@@ -258,10 +312,10 @@ def build_studio():
     area_light("Strip / cool rim", (105, 80, 125), (0, 15, 20), 1_350_000, 110, (0.74, 0.85, 1.0), stage, 0.28)
     area_light("Softbox / front fill", (70, -150, 75), (0, 0, 15), 330_000, 100, (0.86, 0.92, 1.0), stage, 0.75)
     area_light("Strip / metal edge", (-25, 125, 155), (12, 35, 25), 650_000, 100, (1.0, 0.97, 0.89), stage, 0.18)
-    hero = camera("01 / HERO", (145, -191, 218), (0, 0, 13), stage, lens=63)
-    hero.data.shift_x, hero.data.shift_y = -0.02, -0.06
-    overhead = camera("02 / OVERHEAD", (0, 0, 340), (0, 0, 0), stage, ortho=148)
-    detail = camera("03 / HEADER DETAIL", (66, -53, 116), (4, 28, 24), stage, lens=60)
+    hero = camera("01 / SQUARE / 1 to 1", (145, -191, 232), (0, 0, 13), stage, lens=66)
+    hero.data.shift_x, hero.data.shift_y = -0.02, -0.05
+    wide = camera("02 / WIDESCREEN / 16 to 9", (177, -205, 184), (0, 0, 13), stage, lens=55)
+    wide.data.shift_x, wide.data.shift_y = -0.025, -0.045
     scene.camera = hero
     scene.render.engine = "CYCLES"
     scene.cycles.device = "CPU"
@@ -286,16 +340,15 @@ def build_studio():
                 area.spaces.active.shading.type = "MATERIAL"
     bpy.ops.object.select_all(action="DESELECT")
     bpy.context.view_layer.update()
-    assert len(cap_objects) == 9 and all(n in bpy.data.objects for n in (hero.name, overhead.name, detail.name))
+    assert len(cap_objects) == 9 and all(n in bpy.data.objects for n in (hero.name, wide.name))
     body = next(o for o in root.all_objects if o.name.startswith("Enclosure"))
     assert all(abs(a-b) < 0.001 for a,b in zip(body.dimensions, (85,120,22)))
-    return scene, model, [(hero, "Tacpad 9_01_Hero", 2400, 1800),
-                          (overhead, "Tacpad 9_02_Top", 2000, 2200),
-                          (detail, "Tacpad 9_03_Detail", 2400, 1800)]
+    return scene, model, [(hero, "Tacpad_9_Primadon_1x1", 2048, 2048),
+                          (wide, "Tacpad_9_Primadon_16x9", 2560, 1440)]
 
 
 def main():
-    OUT.mkdir(exist_ok=True)
+    OUT.mkdir(parents=True, exist_ok=True)
     scene, model, shots = build_studio()
     scene.render.resolution_x, scene.render.resolution_y = shots[0][2:]
     scene.render.resolution_percentage = 100
@@ -305,13 +358,13 @@ def main():
         text.use_fake_user = True
     bpy.ops.file.pack_all()
     bpy.context.preferences.filepaths.save_version = 0
-    project = OUT / "Tacpad 9_Studio.blend"
+    project = OUT / "Tacpad_9_Primadon.blend"
     bpy.ops.wm.save_as_mainfile(filepath=str(project))
     if SETUP_ONLY:
         return
-    folder = Path(tempfile.gettempdir()) / "tacpad9-studio-preview" if PREVIEW else OUT
+    folder = Path(tempfile.gettempdir()) / "tacpad9-primadon-preview" if PREVIEW else OUT
     folder.mkdir(exist_ok=True)
-    for cam, name, width, height in shots[:1] if PREVIEW else shots:
+    for cam, name, width, height in shots:
         scene.camera = cam
         scene.render.resolution_x, scene.render.resolution_y = width, height
         scene.render.resolution_percentage = 45 if PREVIEW else 100

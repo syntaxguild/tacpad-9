@@ -11,4 +11,3 @@ __pycache__/
 !/renders/primadon/
 /renders/primadon/*.log
 /renders/primadon/*.zip
-/renders/primadon/exports/

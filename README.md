@@ -1,5 +1,13 @@
 # Tacpad 9 | Primadon
 
+## Tacpad 9 / Model Nine — 3D Design
+
+เคสและภาพเรนเดอร์โดยทีม **Primadon** พร้อมโลโก้ทีม รุ่น **Tacpad 9 (Model Nine)**
+
+![Tacpad 9 by Primadon](renders/primadon/Tacpad_9_Primadon_16x9.png)
+
+[ภาพ 1:1](renders/primadon/Tacpad_9_Primadon_1x1.png) · [ภาพ 16:9](renders/primadon/Tacpad_9_Primadon_16x9.png) · [ไฟล์ Blender](renders/primadon/Tacpad_9_Primadon.blend) · [โค้ดและวิธีใช้งาน](docs/tacpad9-design.md)
+
 ESP32 9-Key Macro Pad + Tic-Tac-Toe พร้อม Minimax AI ที่ไม่มีวันแพ้เมื่อผู้เล่นเริ่มก่อน
 เฟิร์มแวร์เป็น Arduino C++ ใช้ PlatformIO และ Wokwi ใน VS Code
 
