@@ -1,0 +1,65 @@
+{
+  "product": "Tacpad 9",
+  "version": "0.2.0",
+  "units": "mm",
+  "stage": "digital prototype; purchased-part fit and USB enumeration not physically tested",
+  "controller": {
+    "name": "ESP32-S3-Zero-style FH4R2, unpopulated castellated headers",
+    "size": [18.0, 23.5, 1.6],
+    "center": [-15.0, 44.5],
+    "pcb_bottom": 3.8,
+    "component_top": 8.8,
+    "usb_center_z": 7.2,
+    "usb_overhang": 1.4,
+    "sources": ["https://www.waveshare.com/wiki/ESP32-S3-Zero", "https://files.waveshare.com/wiki/ESP32-S3-Zero/ESP32-S3-Zero-Sch.pdf"],
+    "note": "Budget clones must match this outline and pinout. Verify the delivered PCB and USB projection; the cradle clearance is parametric."
+  },
+  "display": {
+    "name": "0.91-inch SSD1306 128x32 I2C module, direct-soldered wires",
+    "size": [37.2, 12.2, 1.6],
+    "active": [22.4, 5.6],
+    "pcb_bottom": 17.0,
+    "component_bottom": 15.7,
+    "glass_top": 20.3,
+    "source": "https://www.mcucity.com/product/2541/oled-0-91-inch-128x32-i2c-blue-module-ssd1306",
+    "note": "PCB dimensions are a common 0.91 module envelope, not a seller-certified tolerance. Select the 128x32 variant; 128x64 is not equivalent."
+  },
+  "encoder": {
+    "name": "KY-040 / EC11 6 mm D-shaft with push switch",
+    "pcb_size": [26.0, 20.0, 1.6],
+    "pcb_bottom": 8.0,
+    "housing_top": 17.1,
+    "bushing_diameter": 7.0,
+    "nut_top": 23.8,
+    "shaft_top": 31.2,
+    "shaft_diameter": 6.0,
+    "source": "https://www.modulemore.com/product/220/ky-040-โมดูล-knob-เอ็นโค้ดเดอร์-วัดความเร็วรอบ-และสวิตซ์-rotary-encoder-module-ky-040",
+    "note": "KY-040 shaft lengths vary; measure shaft_top and nut_top before printing the knob."
+  },
+  "switch": {
+    "name": "Outemu MX-compatible 3-pin, conventional cruciform stem",
+    "body_width": 13.9,
+    "body_depth_below_plate": 10.5,
+    "travel": 4.0,
+    "stem_span": 4.0,
+    "stem_bar": 1.2,
+    "note": "Do not use magnetic, low-profile or dustproof-box stem variants without checking the socket and travel coupon."
+  },
+  "fasteners": {
+    "case": "4 x M2 x 8 mm countersunk self-tapping screws",
+    "oled": "4 x M2 x 6 mm self-tapping screws",
+    "controller_retainer": "2 x M2 x 10 mm self-tapping screws",
+    "pilot_diameter": 1.7,
+    "clearance_diameter": 2.4,
+    "note": "Pilot sizing depends on print material and actual screw thread. Use the fit coupon first; no heat-set inserts are required."
+  },
+  "print": {
+    "process": "FDM, 0.4 mm nozzle, 0.16-0.20 mm layers",
+    "material": "PLA+ or PETG",
+    "board_clearance_per_side": 0.3,
+    "keycap_wall": 1.3,
+    "stem_clearance": 0.1,
+    "minimum_pressed_skirt_gap": 0.8,
+    "note": "Prototype dimensions and material choice require a fit print; dimensional validation is not physical certification."
+  }
+}

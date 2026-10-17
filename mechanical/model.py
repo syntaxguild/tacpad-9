@@ -3,20 +3,23 @@
 All dimensions below are millimetres; +Y is the header, +Z is up.
 Change P and rerun to rebuild only this script's generated objects.
 The enclosure is 85 x 120 x 22; the controls extend above that height.
-This is a design model, without PCB mounts or production switch/stem fits.
+Reference hardware, service mounts and print-fit interfaces are parameterized.
+Purchased-part tolerances still require the included fit coupon and prototype.
 """
 
 import math
 import os
 import struct
 import tempfile
+import json
+from pathlib import Path
 
 import bpy
 
 
 P = {
     "width": 85.0, "length": 120.0, "height": 22.0,
-    "wall": 2.4, "corner": 2.5, "bottom_thickness": 1.8,
+    "wall": 2.7, "corner": 2.5, "bottom_thickness": 1.8,
     "recess_depth": 1.2, "recess_margin": 4.5,
     "pitch": 19.0, "key_size": 17.6, "key_height": 7.0,
     "key_radius": 1.4, "dish_depth": 0.75, "dish_radius": 32.0,
@@ -25,6 +28,10 @@ P = {
     "oled_x": -15.0, "header_y": 40.0, "glass_thickness": 1.0,
     "knob_x": 24.0, "knob_diameter": 16.0, "knob_height": 12.0,
     "knurl_teeth": 48, "knurl_depth": 0.30, "knurl_pitch": 1.8,
+    "switch_travel": 4.0, "pressed_gap": 0.8, "key_wall": 1.3,
+    "stem_span": 4.1, "stem_bar": 1.3, "knob_base_height": 3.0,
+    "shaft_diameter": 6.1, "shaft_flat": 2.0, "shaft_depth": 7.8,
+    "display_active_width": 22.4,
     "case_color": (0.64, 0.67, 0.69, 1.0),
     "key_color": (0.87, 0.88, 0.85, 1.0),
 }
@@ -35,6 +42,12 @@ EXPORT_STL = False
 EXPORT_OBJ = False
 EXPORT_DIRECTORY = ""
 TAG = "tacpad9_generated"
+REFERENCE = json.loads(Path(__file__).with_name("reference.json").read_text(encoding="utf-8"))
+
+
+def part(obj, identity):
+    obj["print_part"] = identity
+    return obj
 
 
 def activate(obj):
@@ -129,18 +142,134 @@ def box(name, size, position, radius, target, mat=None):
     if radius > 0:
         bevel(obj, radius)
     if mat is not None:
+        obj.data.materials.clear()
         obj.data.materials.append(mat)
+        for face in obj.data.polygons:
+            face.material_index = 0
     return obj
 
 
-def subtract(obj, cutter):
+def subtract(obj, cutter, operation="DIFFERENCE"):
     activate(obj)
     mod = obj.modifiers.new("Cut / " + cutter.name, "BOOLEAN")
-    mod.operation = "DIFFERENCE"
+    mod.operation = operation
     mod.solver = "EXACT"
     mod.object = cutter
     bpy.ops.object.modifier_apply(modifier=mod.name)
     remove_object(cutter)
+    # Keep Boolean cut and union faces on this part's actual material.
+    first = next((m for m in obj.data.materials if m is not None), None)
+    if first is not None:
+        obj.data.materials.clear()
+        obj.data.materials.append(first)
+        for face in obj.data.polygons:
+            face.material_index = 0
+
+
+def cylinder(name, radius, depth, position, target, mat=None):
+    bpy.ops.mesh.primitive_cylinder_add(vertices=64, radius=radius, depth=depth, location=position)
+    obj = move_to(bpy.context.object, target)
+    obj.name = name
+    if mat is not None:
+        obj.data.materials.clear()
+        obj.data.materials.append(mat)
+    return obj
+
+
+def add_service_parts(body, plate, target, references, mat, dark, metal):
+    """Integrated case bosses/cradle; removable OLED carrier and PCB retainer."""
+    h = P["height"]
+    roof = h - P["wall"]
+    pilot = REFERENCE["fasteners"]["pilot_diameter"] / 2
+    clearance = REFERENCE["fasteners"]["clearance_diameter"] / 2
+    for x in (-35.5, 35.5):
+        for y in (-54.5, 54.5):
+            post = cylinder("Case boss", 3.2, roof-1.8+0.3, (x,y,(roof+0.3+1.8)/2), target)
+            subtract(body, post, "UNION")
+            subtract(body, cylinder("Case pilot", pilot, 8.2, (x,y,5.8), target))
+            subtract(plate, cylinder("Base through hole", clearance, 4, (x,y,0.9), target))
+            bpy.ops.mesh.primitive_cone_add(vertices=48, radius1=2.0, radius2=clearance, depth=0.85, location=(x,y,0.4))
+            subtract(plate, move_to(bpy.context.object, target))
+
+    # Rear USB opening accepts the cable overmould, not just the metal shell.
+    ctrl = REFERENCE["controller"]
+    cx, cy = ctrl["center"]
+    subtract(body, box("USB-C / cable clearance", (14.0,8.0,8.0), (cx,P["length"]/2,ctrl["usb_center_z"]), 1.4, target))
+    # Side rails support castellated PCB edges; no holes through the purchased board.
+    for side in (-1,1):
+        subtract(plate, box("PCB side rail", (2.2,24.1,4.4), (cx+side*10.4,cy,3.8), 0.15,target), "UNION")
+        for end in (-1,1):
+            subtract(plate, box("PCB support pad", (2.4,3.0,2.1), (cx+side*8.5,cy+end*9.0,2.75),0.1,target), "UNION")
+        bx, by = cx+side*13.0, cy-8.0
+        subtract(plate, cylinder("PCB clamp post",2.3,7.8,(bx,by,5.5),target), "UNION")
+        subtract(plate, cylinder("PCB clamp pilot",pilot,8.0,(bx,by,5.9),target))
+    subtract(plate, box("PCB forward stop", (20.8,1.6,3.5), (cx,cy-12.9,3.35),0.1,target), "UNION")
+    retainer = part(box("Controller retainer", (30.6,4.8,1.4), (cx,cy-8.0,10.1),0.2,target,mat),"controller-retainer")
+    for side in (-1,1):
+        foot = box("Retainer edge pressure tab", (1.1,4.8,4.2), (cx+side*8.65,cy-8.0,7.5),0.10,target)
+        subtract(retainer,foot,"UNION")
+        subtract(retainer,cylinder("Retainer through hole",clearance,3,(cx+side*13.0,cy-8.0,10.1),target))
+
+    # Four blind roof pilots hold a removable OLED carrier from below.
+    ox, oy = P["oled_x"], P["header_y"]
+    carrier = part(box("OLED carrier / removable",(49.0,24.0,2.0),(ox,oy,16.0),0.35,target,mat),"oled-carrier")
+    for bx in (-35.5,35.5):
+        for by in (-54.5,54.5):
+            subtract(carrier,cylinder("Closure boss clearance",3.5,5,(bx,by,16),target))
+    subtract(carrier,box("OLED PCB pocket",(37.8,12.8,3),(ox,oy,18.4),0.2,target))
+    subtract(carrier,box("OLED rear component relief",(35.5,10.5,6),(ox,oy,16.0),0.2,target))
+    subtract(carrier,box("OLED cable exit",(8.0,6.0,6),(ox-22,oy,16.0),0.1,target))
+    for dx in (-21.9,21.9):
+        for dy in (-8.7,8.7):
+            x,y=ox+dx,oy+dy
+            subtract(body,cylinder("OLED roof boss",2.4,roof-17.0+0.3,(x,y,(roof+0.3+17.0)/2),target),"UNION")
+            subtract(body,cylinder("OLED roof pilot",pilot,5.0,(x,y,19.0),target))
+            subtract(carrier,cylinder("OLED carrier through hole",clearance,4,(x,y,16.0),target))
+    for obj in (body,plate,carrier,retainer):
+        finish(obj)
+
+    # Exact outline reference envelopes; never exported as printable parts.
+    pcb = box("REFERENCE / ESP32-S3-Zero PCB",tuple(ctrl["size"]),(cx,cy,ctrl["pcb_bottom"]+0.8),0.1,references,dark)
+    pcb["reference"] = "controller"
+    box("REFERENCE / MCU components",(14.0,17.0,3.2),(cx,cy-1,7.1),0.2,references,dark)
+    usb = box("REFERENCE / USB-C socket",(9.0,7.0,3.2),(cx,cy+11.75+ctrl["usb_overhang"]-3.5,7.2),0.3,references,metal)
+    usb["reference"] = "usb"
+    display=REFERENCE["display"]
+    pcb=box("REFERENCE / OLED PCB",tuple(display["size"]),(ox,oy,17.8),0.1,references,dark)
+    pcb["reference"]="display"
+    box("REFERENCE / KY-040 PCB",tuple(REFERENCE["encoder"]["pcb_size"]),(P["knob_x"],oy,8.8),0.1,references,dark)
+    box("REFERENCE / encoder housing",(12,12,7.5),(P["knob_x"],oy,13.35),0.3,references,metal)
+    cylinder("REFERENCE / encoder bushing",3.5,6.7,(P["knob_x"],oy,20.45),references,metal)
+    shaft=cylinder("REFERENCE / encoder shaft",3.0,7.4,(P["knob_x"],oy,27.5),references,metal)
+    subtract(shaft,box("Reference D flat",(10,10,10),(P["knob_x"]+6.9,oy,27.5),0,references))
+    # Adhesive feet are purchased consumables; keep the closure screws accessible.
+    for x in (-29.0,29.0):
+        for y in (-49.0,49.0):
+            foot=cylinder("REFERENCE / silicone foot",4,1.1,(x,y,-0.45),references,dark)
+            foot["reference"]="foot"
+    return carrier, retainer
+
+
+def hollow_keycap(cap, target):
+    top = cap.location.z + P["key_height"]/2
+    bottom = top - P["key_height"]
+    ceiling = top - 2.1
+    subtract(cap,box("Keycap underside",(P["key_size"]-2*P["key_wall"],)*2+(ceiling-bottom+1,),
+                     (0,0,(ceiling+bottom-1)/2),0.55,target))
+    tube=box("MX socket outer",(6.0,6.0,top-1.6-bottom-0.1),(0,0,(top-1.6+bottom+0.1)/2),0.25,target)
+    subtract(cap,tube,"UNION")
+    for size in ((P["stem_span"],P["stem_bar"]),(P["stem_bar"],P["stem_span"])):
+        subtract(cap,box("MX cruciform socket",(*size,top-2.0-bottom+1),
+                         (0,0,(top-2.0+bottom-1)/2),0,target))
+
+
+def fit_coupon(target, mat):
+    obj=part(box("Optional fit coupon",(27,25,1.5),(58,0,0.75),0.25,target,mat),"fit-coupon")
+    subtract(obj,box("Switch fit aperture",(P["switch_hole"],P["switch_hole"],4),(54,0,0.75),0.05,target))
+    for i,diameter in enumerate((1.6,1.7,1.8)):
+        subtract(obj,cylinder("Pilot fit hole",diameter/2,4,(67,-6+i*6,0.75),target))
+    obj.hide_render=True
+    return obj
 
 
 def finish(obj):
@@ -256,12 +385,13 @@ def export_model(directory="", stl=True, obj=False, separate_stl=False):
     folder = bpy.path.abspath(directory) if directory else os.path.join(base, "Tacpad 9_exports")
     os.makedirs(folder, exist_ok=True)
     objects = sorted((o for o in bpy.context.scene.objects
-                      if o.get(TAG) and o.type == "MESH"), key=lambda o: o.name)
+                      if o.get(TAG) and o.type == "MESH" and o.get("print_part")), key=lambda o: o.name)
     if not objects:
         raise RuntimeError("Run build() before exporting.")
     paths = []
     if stl:
-        groups = [([o], o.name.split(" / ")[0]) for o in objects] if separate_stl else [(objects, "Tacpad 9")]
+        unique = {o["print_part"]:o for o in reversed(objects)}
+        groups = [([o], name) for name,o in unique.items()] if separate_stl else [([o for o in objects if o["print_part"] != "fit-coupon"], "Tacpad9-assembly")]
         depsgraph = bpy.context.evaluated_depsgraph_get()
         # Binary STL via Python stdlib: also works in Blender 4.0, whose STL
         # exporter is an optional bundled add-on rather than a built-in operator.
@@ -276,7 +406,13 @@ def export_model(directory="", stl=True, obj=False, separate_stl=False):
                     mesh = evaluated.to_mesh()
                     try:
                         mesh.calc_loop_triangles()
-                        matrix = source.matrix_world
+                        matrix = source.matrix_world.copy()
+                        if separate_stl:
+                            from mathutils import Vector
+                            points = [matrix @ Vector(c) for c in source.bound_box]
+                            matrix.translation -= Vector(((min(v.x for v in points)+max(v.x for v in points))/2,
+                                                          (min(v.y for v in points)+max(v.y for v in points))/2,
+                                                          min(v.z for v in points)))
                         for triangle in mesh.loop_triangles:
                             a, b, c = (matrix @ mesh.vertices[i].co for i in triangle.vertices)
                             normal = (b - a).cross(c - a).normalized()
@@ -293,9 +429,11 @@ def export_model(directory="", stl=True, obj=False, separate_stl=False):
         try:
             bpy.ops.object.select_all(action="DESELECT")
             for source in objects:
+                if source["print_part"] == "fit-coupon":
+                    continue
                 source.select_set(True)
             bpy.context.view_layer.objects.active = objects[0]
-            path = os.path.join(folder, "Tacpad 9.obj")
+            path = os.path.join(folder, "Tacpad9-assembly.obj")
             bpy.ops.wm.obj_export(
                 filepath=path, check_existing=False, export_selected_objects=True,
                 apply_modifiers=True, global_scale=1.0,
@@ -327,6 +465,8 @@ def build():
     header_col = collection("02 / Header", root)
     keys_col = collection("03 / Keycaps", root)
     hardware_col = collection("04 / Switch placeholders", root)
+    service_col = collection("05 / Printable service parts", root)
+    references = collection("06 / Reference electronics", root)
     case_mat = material("TacPad / matte housing", P["case_color"], roughness=0.48)
     key_mat = material("TacPad / warm keycaps", P["key_color"], roughness=0.36)
     dark_mat = material("TacPad / graphite", (0.025, 0.032, 0.038, 1), roughness=0.55)
@@ -338,43 +478,57 @@ def build():
     floor = h - P["recess_depth"]
     span = 2 * P["pitch"] + P["key_size"] + 2 * P["recess_margin"]
     body = box(f"Enclosure / {w:g} x {length:g} x {h:g} mm", (w, length, h), (0, 0, h / 2), P["corner"], body_col, case_mat)
+    part(body,"case")
     cavity = box("Cutter / open underside", (w - 2 * wall, length - 2 * wall, roof + 2), (0, 0, (roof - 2) / 2), 0.8, body_col)
     subtract(body, cavity)
     recess = box("Cutter / recessed key deck", (span, span, P["recess_depth"] + 2), (0, P["matrix_y"], floor + (P["recess_depth"] + 2) / 2), 0.55, body_col)
     subtract(body, recess)
     opening = box("Cutter / OLED opening", (P["oled_width"], P["oled_height"], wall + 4), (P["oled_x"], P["header_y"], h - wall / 2), 0.65, body_col)
     subtract(body, opening)
+    subtract(body,cylinder("Encoder panel aperture",3.7,8,(P["knob_x"],P["header_y"],h),body_col))
     positions = [((column - 1) * P["pitch"], P["matrix_y"] + (1 - row) * P["pitch"])
                  for row in range(3) for column in range(3)]
     for index, (x, y) in enumerate(positions, 1):
         hole = box("Cutter / switch", (P["switch_hole"], P["switch_hole"], wall + 4), (x, y, h - wall / 2), 0.18, body_col)
         subtract(body, hole)
         size = P["switch_hole"] - 0.4
-        box(f"Switch {index:02d} / placeholder", (size, size, 3.6), (x, y, floor - 0.2), 0.35, hardware_col, dark_mat)
+        box(f"Switch {index:02d} / reference housing", (size, size, 10.5), (x, y, floor - 5.25), 0.35, hardware_col, dark_mat)
+        stem=box(f"Switch {index:02d} / reference stem",(4,1.2,7.5),(x,y,floor+3.75),0,hardware_col,dark_mat)
+        subtract(stem,box("Cross stem",(1.2,4,7.5),(x,y,floor+3.75),0,hardware_col),"UNION")
     finish(body)
     plate = box("Bottom cover / inset", (w - 2 * wall - 0.5, length - 2 * wall - 0.5, P["bottom_thickness"]), (0, 0, P["bottom_thickness"] / 2), 0.5, body_col, case_mat)
+    part(plate,"base")
     finish(plate)
     glass_top = h - 0.35
     glass = box("OLED glass / recessed", (P["oled_width"] - 0.4, P["oled_height"] - 0.4, P["glass_thickness"]), (P["oled_x"], P["header_y"], glass_top - P["glass_thickness"] / 2), 0.18, header_col, glass_mat)
     finish(glass)
-    active_w = P["oled_width"] - 6
+    active_w = P["display_active_width"]
     box("OLED active area / 4 to 1", (active_w, active_w / 4, 0.04), (P["oled_x"], P["header_y"], glass_top + 0.015), 0.015, header_col, active_mat)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=96, radius=P["knob_diameter"] / 2 + 0.4, depth=0.5, location=(P["knob_x"], P["header_y"], h + 0.25))
+    bpy.ops.mesh.primitive_cylinder_add(vertices=96, radius=P["knob_diameter"] / 2 + 0.4, depth=1.8, location=(P["knob_x"], P["header_y"], h + 0.9))
     collar = move_to(bpy.context.object, header_col)
     collar.name = "Knob collar"
     collar.data.materials.append(dark_mat)
+    part(collar,"knob-bezel")
+    subtract(collar,cylinder("Encoder nut clearance",5.8,4,(P["knob_x"],P["header_y"],h+0.9),header_col))
     bevel(collar, 0.12, 4)
     finish(collar)
-    knob_bottom = h + 0.5
-    knurled_knob(header_col, metal_mat, knob_bottom)
+    knob_bottom = h + P["knob_base_height"]
+    knob = part(knurled_knob(header_col, metal_mat, knob_bottom),"knob")
+    socket=cylinder("D shaft bore",P["shaft_diameter"]/2,P["shaft_depth"]+1,
+                    (P["knob_x"],P["header_y"],knob_bottom+(P["shaft_depth"]-1)/2),header_col)
+    subtract(socket,box("D shaft flat",(10,10,P["shaft_depth"]+3),
+                        (P["knob_x"]+P["shaft_flat"]+5,P["header_y"],knob_bottom+P["shaft_depth"]/2),0,header_col))
+    subtract(knob,socket)
     box("Knob index", (0.65, P["knob_diameter"] * 0.18, 0.06), (P["knob_x"], P["header_y"] + P["knob_diameter"] * 0.29, knob_bottom + P["knob_height"] + 0.02), 0.025, header_col, dark_mat)
-    key_bottom = floor + 1.4
+    key_bottom = floor + P["switch_travel"] + P["pressed_gap"]
     key_top = key_bottom + P["key_height"]
     cap = box("Keycap 01", (P["key_size"], P["key_size"], P["key_height"]), (0, 0, key_bottom + P["key_height"] / 2), P["key_radius"], keys_col, key_mat)
     bpy.ops.mesh.primitive_uv_sphere_add(segments=192, ring_count=192, radius=P["dish_radius"], location=(0, 0, key_top + P["dish_radius"] - P["dish_depth"]))
     sphere = move_to(bpy.context.object, keys_col)
     sphere.name = "Cutter / ergonomic dish"
     subtract(cap, sphere)
+    hollow_keycap(cap,keys_col)
+    part(cap,"keycap")
     bevel(cap, 0.16, 4, math.radians(5))
     finish(cap)
     cap.location.x, cap.location.y = positions[0]
@@ -384,6 +538,8 @@ def build():
         other.name = f"Keycap {index:02d}"
         keys_col.objects.link(other)
         other.location.x, other.location.y = x, y
+    add_service_parts(body,plate,service_col,references,case_mat,dark_mat,metal_mat)
+    coupon = fit_coupon(service_col,case_mat)
     assembly = bpy.data.objects.new("Tacpad 9 / Assembly", None)
     root.objects.link(assembly)
     assembly[TAG] = True
@@ -399,7 +555,7 @@ def build():
     assert all(abs(a - b) < 0.01 for a, b in zip(body.dimensions, (w, length, h))), "Enclosure dimensions changed"
     bpy.ops.object.select_all(action="DESELECT")
     for source in root.all_objects:
-        if source.type == "MESH":
+        if source.type == "MESH" and source != coupon:
             source.select_set(True)
     bpy.context.view_layer.objects.active = body
     # Frame selection only in existing 3D viewports, including the Scripting tab.
