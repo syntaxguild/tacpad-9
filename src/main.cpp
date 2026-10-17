@@ -1,4 +1,4 @@
-// Primadon | TacPad-9 -- ESP32 / Arduino / PlatformIO / SSD1306 I2C
+// Primadon | Tacpad 9 -- ESP32-S3 USB HID / Arduino / SSD1306 I2C
 #include <Arduino.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -16,13 +16,6 @@ using namespace TacpadBoard;
 constexpr int BoardX = 0, BoardY = 8, CellSize = 8;
 constexpr uint32_t DebounceMs = 20, HoldMs = 1500, HighlightMs = 140;
 constexpr uint32_t TransitionMs = 240, ResultFrameMs = 300, FrameMs = 33;
-const char* const Labels[9] = {
-    "COPY", "PASTE", "BUILD", "BLENDER", "UNDO", "REDO", "PLAY", "MUTE", "TERMINAL"
-};
-const char* const Shortcuts[9] = {
-    "CTRL+C", "CTRL+V", "CTRL+SHIFT+B", "CTRL+ALT+SHIFT+B", "CTRL+Z",
-    "CTRL+Y", "MEDIA PLAY/PAUSE", "MEDIA MUTE", "CTRL+`"
-};
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1, 400000, 400000);
 
@@ -105,7 +98,8 @@ void drawMacro() {
         textAt(0, 12, "KEYS 1-9 READY");
     } else {
         char line[24];
-        snprintf(line, sizeof(line), "%d:%s", lastMacro + 1, Labels[lastMacro]);
+        snprintf(line, sizeof(line), "%d:%s", lastMacro + 1,
+                 TacpadKeymap::profile(TacpadKeymap::Coding).keys[lastMacro].label);
         if (macroFlash) display.fillRect(0, 11, 100, 10, SSD1306_WHITE);
         textAt(0, 12, line, macroFlash ? SSD1306_BLACK : SSD1306_WHITE);
     }
@@ -301,7 +295,10 @@ void loop() {
             macroFlash = true;
             macroPressedAt = now;
             screenDirty = true;
-            Serial.printf("MACRO %d [%s]: %s\n", i + 1, Labels[i], Shortcuts[i]);
+            const auto& binding = TacpadKeymap::profile(TacpadKeymap::Coding).keys[i];
+            char shortcut[32];
+            TacpadKeymap::shortcut(binding, shortcut, sizeof(shortcut));
+            Serial.printf("MACRO %d [%s]: %s\n", i + 1, binding.label, shortcut);
             TacpadHid::macro(i);
         }
     }

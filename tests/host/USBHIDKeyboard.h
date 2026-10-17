@@ -2,6 +2,7 @@
 #include <vector>
 #include <algorithm>
 constexpr uint8_t KEY_LEFT_CTRL=0x80, KEY_LEFT_SHIFT=0x81, KEY_LEFT_ALT=0x82;
+constexpr uint8_t KEY_TAB=0xB3, KEY_F12=0xCD;
 struct USBHIDKeyboard {
     std::vector<uint8_t> held;
     std::vector<std::vector<uint8_t>> reports;
