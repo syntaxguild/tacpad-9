@@ -109,12 +109,13 @@ def material(name, color, metallic=0.0, roughness=0.4, brushed=False):
     return mat
 
 
-def bevel(obj, width, segments=8):
+def bevel(obj, width, segments=8, angle_limit=math.radians(30)):
     activate(obj)
     mod = obj.modifiers.new("Machined edge", "BEVEL")
     mod.width = width
     mod.segments = segments
     mod.limit_method = "ANGLE"
+    mod.angle_limit = angle_limit
     bpy.ops.object.modifier_apply(modifier=mod.name)
 
 
@@ -370,11 +371,11 @@ def build():
     key_bottom = floor + 1.4
     key_top = key_bottom + P["key_height"]
     cap = box("Keycap 01", (P["key_size"], P["key_size"], P["key_height"]), (0, 0, key_bottom + P["key_height"] / 2), P["key_radius"], keys_col, key_mat)
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=128, ring_count=64, radius=P["dish_radius"], location=(0, 0, key_top + P["dish_radius"] - P["dish_depth"]))
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=192, ring_count=192, radius=P["dish_radius"], location=(0, 0, key_top + P["dish_radius"] - P["dish_depth"]))
     sphere = move_to(bpy.context.object, keys_col)
     sphere.name = "Cutter / ergonomic dish"
     subtract(cap, sphere)
-    bevel(cap, 0.10, 3)
+    bevel(cap, 0.16, 4, math.radians(5))
     finish(cap)
     cap.location.x, cap.location.y = positions[0]
     for index, (x, y) in enumerate(positions[1:], 2):

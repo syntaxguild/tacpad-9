@@ -3,3 +3,12 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 tests/minimax_test.exe
+
+# Blender scratch files and superseded local render deliveries
+__pycache__/
+*.blend1
+/renders/*
+!/renders/primadon/
+/renders/primadon/*.log
+/renders/primadon/*.zip
+/renders/primadon/exports/
