@@ -1,169 +1,145 @@
-# Tacpad 9 | Primadon
+<div align="center">
 
-## Tacpad 9 / Model Nine — 3D Design
+<img src="docs/assets/primadon-logo.png" width="68" alt="Primadon pixel mascot">
 
-เคสและภาพเรนเดอร์โดยทีม **Primadon** พร้อมโลโก้ทีม รุ่น **Tacpad 9 (Model Nine)**
+# Tacpad 9
 
-![Tacpad 9 by Primadon](renders/primadon/Tacpad_9_Primadon_16x9.png)
+**MODEL NINE · A compact desk instrument by Primadon**
 
-[ภาพ 1:1](renders/primadon/Tacpad_9_Primadon_1x1.png) · [ภาพ 16:9](renders/primadon/Tacpad_9_Primadon_16x9.png) · [ไฟล์ Blender](renders/primadon/Tacpad_9_Primadon.blend) · [โค้ดและวิธีใช้งาน](docs/tacpad9-design.md)
+Nine tactile keys. One rotary control. A little room to play.
 
-ESP32 9-Key Macro Pad + Tic-Tac-Toe พร้อม Minimax AI ที่ไม่มีวันแพ้เมื่อผู้เล่นเริ่มก่อน
-เฟิร์มแวร์เป็น Arduino C++ ใช้ PlatformIO และ Wokwi ใน VS Code
+![Version](https://img.shields.io/badge/version-0.2.0-6b8b63?style=flat-square)
+![Stage](https://img.shields.io/badge/stage-digital_prototype-303b43?style=flat-square)
+![USB](https://img.shields.io/badge/ESP32--S3-native_USB_HID-303b43?style=flat-square)
+![CAD](https://img.shields.io/badge/Blender-4.x-303b43?style=flat-square)
 
-รุ่น Industrial OLED Edition ใช้ **custom OLED 128×32 แนวนอน อัตราส่วน 4:1** อยู่บนซ้าย และ Knob อยู่บนขวาในระดับเดียวกัน
-ตัวจำลองรับคำสั่ง SSD1306 จริงผ่าน I2C และขยายพิกเซล 2× สำหรับแสดงบนผังให้เห็นชัด (พื้นที่แสดงผล 256×64; ความละเอียดเฟิร์มแวร์ยังเป็น 128×32)
-ปุ่มทั้งเก้าจัดเป็นตาราง 3×3 ระยะห่างแนวนอนและแนวตั้งเท่ากัน 140 หน่วย โดยบอร์ด ESP32 อยู่กึ่งกลางใต้แผงปุ่ม
-สายสัญญาณเดินตามช่องว่างระหว่างแถวและขอบด้านนอกของแผง
+[Release downloads](https://github.com/syntaxguild/tacpad-9/releases/tag/v0.2.0) · [Build guide](docs/assembly.md) · [Hardware & BOM](docs/hardware.md) · [ภาษาไทย](docs/README.th.md)
 
-## เริ่มใช้งาน
+</div>
 
-1. เปิดโฟลเดอร์นี้ใน VS Code และติดตั้งส่วนขยายที่แนะนำ: **PlatformIO IDE** และ **Wokwi Simulator**
-2. เปิด PlatformIO Terminal แล้วรัน:
+![Tacpad 9 — Primadon studio render, 16:9](docs/assets/tacpad9-wide.png)
 
-   ```sh
-   pio run
-   ```
+Tacpad 9 brings everyday keyboard shortcuts and media controls into an 85 × 120 mm enclosure. A horizontal OLED keeps feedback quiet; a knurled rotary knob handles volume; a moss-green centre key and the original Primadon mascot give the otherwise restrained industrial form its identity.
 
-3. กด `F1` → **Wokwi: Start Simulator** หาก Wokwi ขอเปิดใช้งาน license ให้ทำตามขั้นตอนของส่วนขยาย
-4. ดูข้อความ Macro / Volume / การเดินเกมใน Serial Monitor ของ Wokwi (115200 baud)
+This repository connects **parametric Blender geometry, serviceable internal mounts, native USB firmware and an SSD1306 simulation** in one reproducible project. The same nine inputs also become a Tic-Tac-Toe board with a Minimax opponent.
 
-`wokwi.toml` ชี้ไปที่ `.pio/build/esp32dev/firmware.bin` และ `firmware.elf` อยู่แล้ว
+> **Prototype status:** software builds and digital geometry checks pass. The images are actual Blender renders. Physical print fit, delivered-component dimensions and USB operation on a real board remain to be tested. See the [validation record](docs/validation.md).
 
-หาก PowerShell หา `pio` ไม่เจอ แต่ติดตั้งผ่าน PlatformIO IDE ไว้แล้ว:
+## A small object, considered inside and out
 
-```powershell
-& "$env:USERPROFILE\.platformio\penv\Scripts\pio.exe" run
-```
+| Industrial design | Embedded behavior | Buildability |
+|---|---|---|
+| Softened rectangular shell, recessed key deck and dished caps | ESP32-S3 keyboard + consumer-control reports over native USB | Separate printable parts with nominal MX and D-shaft interfaces |
+| Brushed-metal knob finish study, glossy display and team pad print | Nonblocking key-report scheduler, debounce and encoder capture | Four-screw underside access, removable OLED carrier and controller retainer |
+| 19 mm key pitch and a wide 128 × 32 display | Macro mode and a hold-to-toggle XO game | Sourced **฿497.20 purchasing plan**, including delivery reserve |
 
-## การควบคุม
+The aluminium appearance is a render finish; the budget build prints the knob and caps with the case. Printing uses an existing machine and filament. The parts/delivery plan is below ฿500, subject to the actual checkout total.
 
-- เริ่มต้นใน **Macro Pad Mode**: บรรทัดบนแสดง `PRIMADON` กับ `MACRO`; ด้านล่างแสดงคีย์ที่กดล่าสุด, Volume เป็นเปอร์เซ็นต์ และแถบระดับเสียง
-- กดปุ่มเพื่อจำลอง shortcut ผ่าน Serial พร้อมไฮไลต์ชื่อคีย์บน OLED
-- หมุน encoder ตามเข็มเพิ่ม Volume ครั้งละ 5%; ทวนเข็มลด Volume (0–100%)
-- กดสวิตช์ encoder ค้าง **1.5 วินาที** เพื่อสลับระหว่าง Macro กับเกม ค้างต่อจะไม่สลับซ้ำจนกว่าจะปล่อยแล้วกดใหม่
-- ใน Wokwi คลิก encoder เพื่อเลือก แล้วกด **Space ค้าง** สำหรับ SW; ใช้ลูกศรเพื่อหมุน
-- เกม: ผู้เล่นเป็น **X**, AI เป็น **O** บนจอขาวดำ; กระดาน 24×24 พิกเซลอยู่ฝั่งซ้าย คะแนน X / O / D และผลเกมอยู่ฝั่งขวา
-- ปุ่มจริง 1–9 ตรงกับช่องบนจอจากซ้ายไปขวา บนลงล่าง
-- คลิกปุ่มหรือกดเลข `1`–`9` ขณะ diagram มี focus
-- เมื่อจบเกม ให้ปล่อยปุ่ม แล้วกดปุ่มใดก็ได้เพื่อเริ่มรอบใหม่ การกดเริ่มรอบใหม่ยังไม่ลง X
-- การหมุน encoder ในโหมดเกมไม่มีผลต่อกระดาน
-- คะแนนสะสมอยู่ตลอด session แม้เริ่มรอบใหม่หรือสลับโหมด; รีเซ็ตเมื่อรีสตาร์ต ESP32 (แต่ละช่องสะสมสูงสุด 65,535)
+## The assembly
 
-| ตำแหน่ง | ปุ่ม / GPIO | Macro | ข้อความจำลอง |
-|---|---|---|---|
-| บนซ้าย | Btn1 / 13 | COPY | CTRL+C |
-| บนกลาง | Btn2 / 12 | PASTE | CTRL+V |
-| บนขวา | Btn3 / 14 | BUILD | CTRL+SHIFT+B |
-| กลางซ้าย | Btn4 / 27 | BLENDER | LAUNCH BLENDER |
-| กลาง | Btn5 / 26 | UNDO | CTRL+Z |
-| กลางขวา | Btn6 / 25 | REDO | CTRL+Y |
-| ล่างซ้าย | Btn7 / 33 | PLAY | MEDIA PLAY/PAUSE |
-| ล่างกลาง | Btn8 / 15 | MUTE | MEDIA MUTE |
-| ล่างขวา | Btn9 / 16 | TERMINAL | CTRL + backtick |
+![Exploded view of actual Tacpad 9 CAD parts](docs/assets/tacpad9-exploded.png)
 
-Macro และ Volume เป็นข้อความจำลองตามโจทย์ ยังไม่ได้ส่ง USB/BLE HID หรือปรับเสียงบนคอมพิวเตอร์จริง
+The shell carries the switch deck and screw bosses. Underneath, a removable carrier locates the OLED, an edge cradle holds the compact S3 board, and a separate retainer secures it without drilling the PCB. A rear opening admits the USB cable overmould. Hollow caps provide an MX cruciform socket; the knob has a D bore and push-switch clearance.
 
-## วงจรและจอ
+The exploded image uses the same geometry as the manufacturing exports. Electronic bodies are labeled reference envelopes, not supplier STEP models. Their fit assumptions and the remaining measurement gates are documented in the [hardware guide](docs/hardware.md).
 
-| อุปกรณ์ / ขา | ESP32 |
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/tacpad9-square.png" alt="Square studio product render"></td>
+<td width="50%"><img src="docs/assets/tacpad9-service.png" alt="Underside service view with base removed"></td>
+</tr>
+<tr><td align="center">Primadon identity · 2048 × 2048</td><td align="center">Service access · actual modeled mounts</td></tr>
+</table>
+
+[Download square image](docs/assets/tacpad9-square.png) · [Download 16:9 image](docs/assets/tacpad9-wide.png)
+
+## At a glance
+
+| Parameter | Reference design |
 |---|---|
-| OLED SDA | GPIO21 / สีน้ำเงิน |
-| OLED SCL | GPIO22 / สีเหลือง |
-| OLED VCC | 3V3 / สีแดง |
-| OLED GND | GND / สีดำ |
-| Encoder DT | GPIO34 + pull-up 10kΩ ไป 3V3 |
-| Encoder CLK | GPIO35 + pull-up 10kΩ ไป 3V3 |
-| Encoder SW | GPIO32 / INPUT_PULLUP |
-| Encoder VCC / GND | 3V3 / GND |
-| ปุ่มทั้ง 9 | GPIO ตามตาราง / INPUT_PULLUP; อีก contact ลง GND |
+| Enclosure | **85 × 120 × 22 mm**; controls extend above the shell |
+| Key layout | 3 × 3, **19 mm pitch**, 17.6 mm caps, 4 mm nominal switch travel |
+| Display | 0.91-inch SSD1306, **128 × 32**, 38 × 16 mm top window |
+| Rotary control | 16 mm diameter × 12 mm knob, EC11 / KY-040 push encoder |
+| Controller | ESP32-S3-Zero-style FH4R2, 4 MB flash, native USB-C |
+| Manufacturing | FDM shell/base/carriers/caps/knob; M2 self-tapping screws |
+| Output files | Packed `.blend`, individual mm-scale `.stl`, assembly `.obj`, firmware `.bin` |
 
-- OLED ใช้ `chip-primadon-oled` กับ `chips/primadon-oled.chip.wasm`; เฟิร์มแวร์ใช้ framebuffer 128×32, I2C address 0x3C และความเร็ว 400kHz
-- `board-ssd1306` มาตรฐานของ Wokwi เป็นจอ 128×64 และไม่รองรับการเปลี่ยนทรงด้วย `attrs.height`; จึงเปลี่ยนเป็น custom chip ที่มีจอแถบยาวจริง
-- เริ่มต้นด้วย `Wire.begin(21, 22)` ก่อนเรียก `display.begin(SSD1306_SWITCHCAPVCC, 0x3C)` โดยตรง จึงไม่มี address-only probe มาขัดขวางการส่งคำสั่ง init
-- Encoder ใช้ชื่อ part `wokwi-ky-040`; ตรวจด้วย Wokwi CLI แล้ว `wokwi-rotary-encoder` เป็น unknown part type
-- โปรไฟล์ `esp32dev` ใช้ **Adafruit SSD1306** กับ **Adafruit GFX Library** ทั้ง simulator และฮาร์ดแวร์จริง
-- GPIO34/35 ไม่มี pull-up ภายใน จึงใช้ `INPUT` กับตัวต้านทานภายนอก ส่วน SW และปุ่มทั้ง 9 ใช้ `INPUT_PULLUP`
-- สีสาย: GND ดำ, VCC แดง, SDA น้ำเงิน, SCL เหลือง, สัญญาณปุ่ม/encoder เขียวหรือม่วง
-- หากจัดสรร framebuffer ไม่สำเร็จ เฟิร์มแวร์แจ้งทาง Serial และยังรับคำสั่งจากปุ่ม/Knob ผ่าน Serial ได้ ทั้งนี้ `display.begin()` ของไลบรารีไม่ได้ยืนยันว่าอุปกรณ์ตอบ ACK บนบัสจริง
-
-สำหรับฮาร์ดแวร์จริง ต่อ OLED I2C ตามตาราง แล้ว build/upload ด้วย:
-
-```sh
-pio run
-pio run -t upload
-pio device monitor -b 115200
-```
-
-`wokwi.toml` ยังคงใช้เส้นทาง `esp32dev` เดิม จึงเริ่ม simulator หลัง build ได้ทันที
-ไฟล์ `.wasm` ของจอรวมอยู่ใน repository แล้ว จึงไม่ต้องติดตั้ง compiler ของ custom chip เพื่อรัน
-หลังอัปเดตจากรุ่นจอสี่เหลี่ยม ให้ Stop แล้ว Start simulator ใหม่เพื่อโหลดโมเดลจอใหม่
-
-หากแก้ C source ของโมเดลจอ ให้ build ใหม่ด้วย [Wokwi CLI](https://docs.wokwi.com/guides/custom-chips-to-wasm):
-
-```sh
-cd chips
-wokwi-cli chip compile primadon-oled.chip.c -o primadon-oled.chip.wasm
-```
-
-## โครงสร้างและการทดสอบ
+## One surface, two modes
 
 ```text
-TacPad-9/
-  platformio.ini
-  diagram.json
-  wokwi.toml
-  src/main.cpp          # input, UI, animation, modes, serial
-  include/tictactoe.h   # game rules + Minimax / alpha-beta pruning
-  chips/primadon-oled.chip.c     # SSD1306-compatible I2C display model
-  chips/primadon-oled.chip.json  # 4:1 display presentation
-  chips/primadon-oled.chip.wasm # ready-to-run Wokwi model
-  tests/minimax_test.cpp
-  tests/oled_smoke_test.cpp
-  tests/host/          # Arduino / I2C / OLED doubles for host tests
-  tests/oled_chip_test.cjs      # tests the compiled WASM model
-  .vscode/extensions.json
+COPY       PASTE      BUILD
+BLENDER    UNDO       REDO
+PLAY       MUTE       TERMINAL
+
+Rotate → host volume     Hold 1.5 s → Macro / XO
 ```
 
-`loop()` ใช้ `millis()` สำหรับ debounce 20ms, highlight, long-press, เอฟเฟกต์สลับโหมด และป้ายผลเกม ไม่มี `delay()` ใน application loop
-Encoder อ่าน quadrature ผ่าน interrupt; งาน I2C และ Minimax อยู่ใน main loop
-OLED ส่ง framebuffer เฉพาะเมื่อ UI เปลี่ยน โดยเว้นอย่างน้อย 33ms หลังจบเฟรมก่อนหน้า ไม่มีการรอค้างสำหรับแอนิเมชันหรือการกดปุ่ม
-Minimax ค้นหาจนครบเกมบนกระดานเก้าช่อง ใช้ depth scoring เพื่อเลือกชนะเร็วและชะลอการแพ้ พร้อม alpha-beta pruning
+Keyboard actions use Ctrl-based Windows/Linux shortcuts. The BLENDER key emits Ctrl+Alt+Shift+B and needs a host launcher binding. Volume uses relative consumer reports; the OLED does not invent a host volume percentage. In XO, the keys select cells and HID output is suppressed. The AI is checked against a full-tree oracle: **521 player paths, zero player wins**.
 
-ทดสอบ AI ด้วย C++ compiler บนเครื่อง (เช่น MinGW / GCC / Clang):
+[Full key map and flashing](docs/firmware.md) · [GPIO wiring](docs/hardware.md#wiring-native-usb-hardware)
+
+```mermaid
+flowchart LR
+    K[9 switches] --> I[Debounced input]
+    E[Rotary encoder] --> I
+    I --> M{Mode}
+    M -->|Macro| H[USB keyboard + media]
+    H --> PC[Computer]
+    M -->|XO| G[Minimax game]
+    M --> O[128 × 32 OLED]
+    G --> O
+```
+
+## Build it
+
+**Firmware** — install PlatformIO, then:
 
 ```sh
-g++ -std=c++11 -O2 -Wall -Wextra -pedantic -Iinclude tests/minimax_test.cpp -o tests/minimax_test.exe
-./tests/minimax_test.exe
+pio run -e tacpad_s3
+pio run -e tacpad_s3 -t upload
 ```
 
-ตัวทดสอบเทียบทุกตำแหน่งที่ AI เดินได้กับ full-tree oracle และไล่ทุกลำดับการเดินของผู้เล่นกับ AI ตัวจริง โดย assert ว่าผู้เล่นชนะเป็นศูนย์
-การทดสอบนี้ตรวจ game logic; การตรวจจอ/การกดปุ่มจริงให้ทำใน Wokwi ตามขั้นตอนเริ่มใช้งาน
+Hold BOOT while connecting USB for the first upload. Wire peripherals at 3.3 V using the [S3 pin map](docs/hardware.md). The original Wokwi diagram uses its own profile: `pio run -e esp32dev`. It validates UI/game simulation; it does not simulate native S3 USB HID.
 
-ทดสอบการเริ่มต้น OLED และ UI จาก `src/main.cpp` โดยตรงด้วยฮาร์ดแวร์จำลองบน host:
+**Model & photographs** — use Blender 4.x, with no add-ons or Python packages:
 
 ```sh
-g++ -std=c++11 -O2 -Wall -Wextra -pedantic -Itests/host -Iinclude tests/oled_smoke_test.cpp -o .pio/oled_smoke_test.exe
-./.pio/oled_smoke_test.exe
+blender -b --python-exit-code 1 --python mechanical/validate.py
+blender -b --python-exit-code 1 --python mechanical/render.py
+blender -b --python-exit-code 1 --python mechanical/service.py
 ```
 
-ตรวจว่า I2C ใช้ขา 21/22 ก่อน init, ไม่มี probe gate เดิม, ข้อความและรูปทั้งหมดอยู่ในขอบ 128×32 รวมถึงคะแนนสูงสุด, ปุ่มทั้ง 9, ขอบเขต Volume, long-press 1.5 วินาที, AI ตอบทันที และการเริ่มรอบใหม่
-ตัวทดสอบใช้ doubles ของอุปกรณ์ จึงไม่ยืนยันการแสดงภาพหรือ ACK ใน Wokwi จริง
+Open `mechanical/model.py` from disk in Blender's Scripting tab with `reference.json` alongside it. Edit `P` and rerun. Generated outputs go to `mechanical/exports/`; the studio includes packed branding, fonts, lights and both requested cameras. Print the fit coupon and one cap before the whole set. See [printing and assembly](docs/assembly.md).
 
-ทดสอบไฟล์ WASM ของโมเดลจอจริงด้วย Node.js (ไม่ใช้ npm packages):
+**Checks** — reproduce the recorded behavior and provenance:
 
 ```sh
-node tests/oled_chip_test.cjs
+python scripts/check_repo.py
+python scripts/check_firmware.py
+pio run -e tacpad_s3 -e esp32dev
 ```
 
-ผลตรวจในสภาพแวดล้อมนี้:
+The host suite requires g++ and Node.js. GitHub Actions also builds both targets and runs Blender 4.0.2 geometry checks. [Validation scope and remaining physical tests →](docs/validation.md)
 
-- `pio run`: SUCCESS; RAM 22,600 bytes, Flash 304,621 bytes
-- OLED host smoke test: PASS ทั้ง initialization, ขอบเขต UI 128×32 และการควบคุม
-- C++ test: AI ตัดสินใจตรงกับ oracle ทั้ง 2,097 ตำแหน่ง
-- ทุกลำดับผู้เล่น 521 แบบ: X ชนะ 0, O ชนะ 368, เสมอ 153
-- Wokwi CLI 0.28.1 `lint`: exit code 0 ไม่มี error/warning; มี info ว่า `board-esp32-devkit-c-v4` เป็นชนิดบอร์ดที่ไม่มีเอกสารอ้างอิงใน registry ของ linter
-- รัน firmware ใน Wokwi VS Code แล้ว จอแถบยาวแสดง PRIMADON / MACRO, KEYS 1-9 READY และแถบระดับเสียงได้จริง พร้อมทดสอบหมุน Knob ให้ Volume เปลี่ยนจาก 50% เป็น 55%
-- WASM chip test ตรวจ ACK ที่ 0x3C, การ init ของ Adafruit, framebuffer 512 bytes, อัตราส่วน 4:1, การขยายภาพ 2× และคำสั่ง invert/on/off
+## Project map
 
-เอกสารอ้างอิง: [Wokwi OLED](https://docs.wokwi.com/parts/board-ssd1306), [Rotary encoder](https://docs.wokwi.com/parts/wokwi-ky-040), [Wokwi project config](https://docs.wokwi.com/vscode/project-config), [ESP32 GPIO](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/gpio.html)
+```text
+src/                    Main firmware and OLED/game flow
+include/                Pin map, USB actions, game engine, version
+mechanical/             Parametric model, studio, reference data, geometry checks
+chips/                  SSD1306-compatible Wokwi OLED source + compiled WASM
+tests/                  Game, UI, HID and compiled-chip behavior checks
+scripts/                Portable verification and release packaging
+docs/                   BOM, wiring, assembly, validation and product images
+.github/workflows/      Firmware and CAD validation
+```
+
+Large generated CAD and firmware bundles live in [versioned Releases](https://github.com/syntaxguild/tacpad-9/releases), keeping source browsing focused. Earlier design rounds remain in Git history with their original commits.
+
+[Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md) · [Release v0.2.0](https://github.com/syntaxguild/tacpad-9/releases/tag/v0.2.0)
+
+---
+
+**Primadon · Tacpad 9 / Model Nine**  
+Industrial design exploration, embedded firmware and reproducible CAD. Team mascot supplied by Primadon. Third-party tools and libraries retain their own licenses and notices.

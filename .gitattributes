@@ -1,3 +1,7 @@
-
-# Generated mesh exchange data: review in a 3D viewer, not as source.
-renders/primadon/exports/*.obj binary
+* text=auto eol=lf
+*.png binary
+*.wasm binary
+*.blend binary
+*.stl binary
+*.obj binary
+*.mtl text eol=lf

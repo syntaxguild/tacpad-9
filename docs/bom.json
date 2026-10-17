@@ -1,0 +1,17 @@
+{
+  "currency": "THB",
+  "checked": "2026-10-17",
+  "ceiling": 500,
+  "shipping_allowance": 95,
+  "scope": "Electronics, consumables and delivery. Existing printer, filament, tools and self-printed case/keycaps/knob are outside the purchasing budget.",
+  "items": [
+    {"part":"ESP32-S3-Zero-style FH4R2 without headers", "quantity":1, "unit":207.2, "basis":"observed marketplace price; variant and checkout confirmation required", "url":"https://www.lazada.co.th/products/pdp-i5850646815.html"},
+    {"part":"SSD1306 0.91-inch 128x32 I2C OLED M2541-B91", "quantity":1, "unit":53, "basis":"listed price", "url":"https://www.mcucity.com/product/2541/oled-0-91-inch-128x32-i2c-blue-module-ssd1306"},
+    {"part":"KY-040 encoder module", "quantity":1, "unit":32, "basis":"regular listed price, ignoring sale discount", "url":"https://www.modulemore.com/product/220/ky-040-โมดูล-knob-เอ็นโค้ดเดอร์-วัดความเร็วรอบ-และสวิตซ์-rotary-encoder-module-ky-040"},
+    {"part":"Outemu conventional MX 3-pin switch", "quantity":9, "unit":5, "basis":"listed starting price; select matching stem variant", "url":"https://shopee.co.th/ปุ่มสวิตช์-Outemu-Switch-Mechanical-Keyboard-Red-Blue-Brown-Black-สินค้าพร้อมส่งในไทย-i.160376915.44412084514"},
+    {"part":"M2 self-tapping screws, 8/6/10 mm assortment", "quantity":1, "unit":20, "basis":"budget allowance, not a seller quote"},
+    {"part":"Thin hookup wire and insulation", "quantity":1, "unit":10, "basis":"budget allowance, using existing solder and tools"},
+    {"part":"USB-C data cable", "quantity":1, "unit":30, "basis":"budget allowance, not a seller quote"},
+    {"part":"Optional clear protective film and adhesive", "quantity":1, "unit":5, "basis":"budget allowance; rendered glass is a visual finish"}
+  ]
+}

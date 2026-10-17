@@ -1,0 +1,48 @@
+name: Validate
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python scripts/check_repo.py
+      - run: python scripts/check_firmware.py
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+      - run: pip install platformio==6.2.0
+      - run: pio run -e tacpad_s3 -e esp32dev
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-builds
+          path: |
+            .pio/build/tacpad_s3/*.bin
+            .pio/build/esp32dev/firmware.bin
+  mechanical:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Blender 4.0.2
+        run: |
+          curl --fail --location --retry 3 https://download.blender.org/release/Blender4.0/blender-4.0.2-linux-x64.tar.xz -o /tmp/blender.tar.xz
+          tar -xf /tmp/blender.tar.xz -C /tmp
+      - name: Check manifold parts and clearances
+        run: /tmp/blender-4.0.2-linux-x64/blender -b --python-exit-code 1 --python mechanical/validate.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mechanical-checks
+          path: |
+            mechanical/validation.json
+            mechanical/exports/parts/
