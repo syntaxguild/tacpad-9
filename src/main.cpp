@@ -1,23 +1,18 @@
-// Primadon | TacPad-9 -- ESP32 / Arduino / PlatformIO
+// Primadon | TacPad-9 -- ESP32 / Arduino / PlatformIO / SSD1306 I2C
 #include <Arduino.h>
-#include <SPI.h>
+#include <Wire.h>
 #include <Adafruit_GFX.h>
-#ifdef TACPAD_ILI9341
-#include <Adafruit_ILI9341.h>
-#else
-#include <Adafruit_ST7789.h>
-#endif
+#include <Adafruit_SSD1306.h>
 #include "tictactoe.h"
 
 namespace {
 constexpr uint8_t KeyPins[9] = {13, 12, 14, 27, 26, 25, 33, 15, 16};
 constexpr uint8_t EncoderDT = 34, EncoderCLK = 35, EncoderSW = 32;
-constexpr uint8_t TftMOSI = 23, TftSCLK = 18, TftCS = 5, TftDC = 2, TftRST = 4;
+constexpr uint8_t OledSDA = 21, OledSCL = 22, OledAddress = 0x3C;
+constexpr int ScreenWidth = 128, ScreenHeight = 64;
+constexpr int BoardX = 0, BoardY = 15, CellSize = 16;
 constexpr uint32_t DebounceMs = 20, HoldMs = 1500, HighlightMs = 140;
-constexpr uint32_t TransitionMs = 320, ResultFrameMs = 280;
-constexpr uint16_t Background = 0x0823, Surface = 0x1086, Cyan = 0x07FF;
-constexpr uint16_t Magenta = 0xF81F, Red = 0xF986, White = 0xFFFF, Muted = 0x7C51;
-constexpr int BoardX = 39, BoardY = 45, CellSize = 54;
+constexpr uint32_t TransitionMs = 240, ResultFrameMs = 300, FrameMs = 33;
 const char* const Labels[9] = {
     "COPY", "PASTE", "BUILD", "BLENDER", "UNDO", "REDO", "PLAY", "MUTE", "TERMINAL"
 };
@@ -26,11 +21,7 @@ const char* const Shortcuts[9] = {
     "CTRL+Y", "MEDIA PLAY/PAUSE", "MEDIA MUTE", "CTRL+`"
 };
 
-#ifdef TACPAD_ILI9341
-Adafruit_ILI9341 tft(TftCS, TftDC, TftRST);
-#else
-Adafruit_ST7789 tft(TftCS, TftDC, TftRST);
-#endif
+Adafruit_SSD1306 display(ScreenWidth, ScreenHeight, &Wire, -1, 400000, 400000);
 
 struct Button {
     uint8_t pin = 0;
@@ -45,7 +36,7 @@ struct Button {
         changedAt = millis();
     }
 
-    // Returns a single event per stable press; holding a key never repeats.
+    // One event per debounced press, even if the key remains held.
     bool update(uint32_t now) {
         const bool sample = digitalRead(pin) == LOW;
         if (sample != raw) {
@@ -61,21 +52,19 @@ struct Button {
 };
 
 Button keys[9], modeButton;
-bool gameMode = false;
-bool holdConsumed = false;
-bool transitioning = false;
-bool keysArmed = true;
-bool resultBright = true;
-bool highlighted[9] = {};
-uint32_t highlightAt[9] = {};
+bool gameMode = false, holdConsumed = false, keysArmed = true;
+bool displayReady = false, screenDirty = true;
+bool transitioning = false, resultBright = true, macroFlash = false;
 uint32_t holdStartedAt = 0, transitionAt = 0, resultFrameAt = 0;
-int transitionLine = -1;
-int volume = 50;
+uint32_t macroPressedAt = 0, lastFrameAt = 0;
+int transitionFrame = -1, lastMacro = -1, volume = 50;
 char board[9];
 char gameResult = TicTacToe::Empty;
+// Session counters persist across rounds/mode changes; saturate at 65535.
+uint16_t playerScore = 0, aiScore = 0, drawScore = 0;
 
-// Both encoder signals use external pull-ups: GPIO34/35 have none internally.
-// Interrupts capture rotation even during SPI drawing or the Minimax search.
+// GPIO34/35 need external pull-ups. Capture every quadrature edge even while
+// an OLED frame is being transferred over I2C or Minimax is searching.
 portMUX_TYPE encoderMux = portMUX_INITIALIZER_UNLOCKED;
 volatile int encoderSteps = 0;
 volatile int encoderQuarterSteps = 0;
@@ -87,7 +76,7 @@ void IRAM_ATTR readEncoder() {
     const uint8_t previous = encoderState;
     encoderState = next;
     if ((previous ^ next) == 3) {
-        encoderQuarterSteps = 0;  // Reject an invalid two-bit jump.
+        encoderQuarterSteps = 0;
     } else if (previous != next) {
         const bool clockwise = (previous == 3 && next == 1) ||
             (previous == 1 && next == 0) || (previous == 0 && next == 2) ||
@@ -102,151 +91,127 @@ void IRAM_ATTR readEncoder() {
     portEXIT_CRITICAL_ISR(&encoderMux);
 }
 
-void textAt(int x, int y, const char* text, uint16_t color, uint8_t size = 1) {
-    tft.setTextSize(size);
-    tft.setTextColor(color);
-    tft.setCursor(x, y);
-    tft.print(text);
+void textAt(int x, int y, const char* text, uint16_t color = SSD1306_WHITE) {
+    display.setTextColor(color);
+    display.setCursor(x, y);
+    display.print(text);
 }
 
-void centered(int y, const char* text, uint16_t color, uint8_t size = 1) {
-    textAt((240 - int(strlen(text)) * 6 * size) / 2, y, text, color, size);
-}
-
-void drawHeader(const char* subtitle) {
-    tft.fillRect(0, 0, 240, 23, Surface);
-    textAt(9, 8, "PRIMADON | TacPad-9", Cyan);
-    tft.fillRect(215, 7, 15, 3, Magenta);
-    tft.drawFastHLine(0, 22, 240, Cyan);
-    centered(30, subtitle, White);
-}
-
-void drawMacroKey(int index) {
-    const bool pressed = highlighted[index];
-    const int x = 5 + (index % 3) * 78;
-    const int y = 48 + (index / 3) * 44;
-    tft.fillRect(x, y, 74, 41, Background);
-    tft.fillRoundRect(x, y + (pressed ? 3 : 0), 73, 38, 4,
-                      pressed ? Cyan : Surface);
-    tft.drawRoundRect(x, y + (pressed ? 3 : 0), 73, 38, 4,
-                      pressed ? White : Muted);
-    char number[2] = {char('1' + index), '\0'};
-    textAt(x + 5, y + 5 + (pressed ? 3 : 0), number, pressed ? Background : Magenta);
-    textAt(x + (73 - int(strlen(Labels[index])) * 6) / 2,
-           y + 22 + (pressed ? 3 : 0), Labels[index], pressed ? Background : White);
-}
-
-void drawVolume() {
-    tft.fillRect(5, 185, 230, 31, Background);
-    char bar[11];
-    for (int i = 0; i < 10; ++i) bar[i] = i < volume / 10 ? '=' : ' ';
-    bar[10] = '\0';
-    char line[32];
-    snprintf(line, sizeof(line), "VOLUME: [%s] %d%%", bar, volume);
-    textAt(8, 188, line, Cyan);
-    tft.drawRect(8, 202, 224, 8, Muted);
-    tft.fillRect(10, 204, 220 * volume / 100, 4, Magenta);
-}
-
-void drawGameCell(int index) {
-    const int x = BoardX + (index % 3) * CellSize;
-    const int y = BoardY + (index / 3) * CellSize;
-    tft.fillRect(x + 3, y + 3, CellSize - 5, CellSize - 5, Background);
-    if (board[index] == TicTacToe::Player) {
-        for (int thickness = -1; thickness <= 1; ++thickness) {
-            tft.drawLine(x + 14, y + 14 + thickness, x + 40, y + 40 + thickness, Cyan);
-            tft.drawLine(x + 40, y + 14 + thickness, x + 14, y + 40 + thickness, Cyan);
-        }
-    } else if (board[index] == TicTacToe::AI) {
-        for (int radius = 14; radius <= 16; ++radius)
-            tft.drawCircle(x + 27, y + 27, radius, Red);
+void drawMacro() {
+    textAt(0, 15, "MODE: MACRO PAD");
+    if (lastMacro < 0) {
+        textAt(0, 27, "KEYS 1-9: READY");
     } else {
-        char number[2] = {char('1' + index), '\0'};
-        textAt(x + 24, y + 24, number, Muted);
+        char line[24];
+        snprintf(line, sizeof(line), "KEY %d: %s", lastMacro + 1, Labels[lastMacro]);
+        if (macroFlash) display.fillRect(0, 25, ScreenWidth, 11, SSD1306_WHITE);
+        textAt(0, 27, line, macroFlash ? SSD1306_BLACK : SSD1306_WHITE);
     }
+    char level[20];
+    snprintf(level, sizeof(level), "VOLUME: %3d%%", volume);
+    textAt(0, 38, level);
+    display.drawRect(0, 48, ScreenWidth, 6, SSD1306_WHITE);
+    display.fillRect(2, 50, (ScreenWidth - 4) * volume / 100, 2, SSD1306_WHITE);
+    textAt(0, 56, "HOLD 1.5s: XO");
 }
 
-void drawGameBoard() {
-    for (int i = 0; i < 9; ++i) drawGameCell(i);
+void drawGame() {
+    display.drawRect(BoardX, BoardY, CellSize * 3, CellSize * 3, SSD1306_WHITE);
     for (int i = 1; i <= 2; ++i) {
-        tft.fillRect(BoardX + i * CellSize - 1, BoardY, 2, CellSize * 3, Cyan);
-        tft.fillRect(BoardX, BoardY + i * CellSize - 1, CellSize * 3, 2, Cyan);
+        display.drawFastVLine(BoardX + i * CellSize, BoardY, 48, SSD1306_WHITE);
+        display.drawFastHLine(BoardX, BoardY + i * CellSize, 48, SSD1306_WHITE);
     }
-    tft.drawRect(BoardX - 2, BoardY - 2, 166, 166, Magenta);
-    tft.fillRect(0, 212, 240, 10, Background);
-    centered(214, "YOU: X   /   AI: O", Cyan);
+    for (int i = 0; i < 9; ++i) {
+        const int x = BoardX + (i % 3) * CellSize;
+        const int y = BoardY + (i / 3) * CellSize;
+        if (board[i] == TicTacToe::Player) {
+            display.drawLine(x + 4, y + 4, x + 12, y + 12, SSD1306_WHITE);
+            display.drawLine(x + 12, y + 4, x + 4, y + 12, SSD1306_WHITE);
+        } else if (board[i] == TicTacToe::AI) {
+            display.drawCircle(x + 8, y + 8, 5, SSD1306_WHITE);
+        } else {
+            char number[2] = {char('1' + i), '\0'};
+            textAt(x + 6, y + 4, number);
+        }
+    }
+
+    const bool finished = gameResult != TicTacToe::Empty;
+    textAt(56, 15, finished ? "ANY: NEW" : "XO VS AI");
+    const char* status = !finished ? "YOUR TURN" :
+        gameResult == TicTacToe::Player ? "PLAYER WINS!" :
+        gameResult == TicTacToe::AI ? "AI WINS!" : "DRAW GAME!";
+    if (finished && resultBright)
+        display.fillRect(54, 24, 74, 10, SSD1306_WHITE);
+    textAt(56, 25, status, finished && resultBright ? SSD1306_BLACK : SSD1306_WHITE);
+
+    char score[16];
+    snprintf(score, sizeof(score), "YOU:%u", unsigned(playerScore));
+    textAt(56, 36, score);
+    snprintf(score, sizeof(score), "AI :%u", unsigned(aiScore));
+    textAt(56, 46, score);
+    snprintf(score, sizeof(score), "DRAW:%u", unsigned(drawScore));
+    textAt(56, 56, score);
 }
 
-void drawResult() {
-    const char* message = gameResult == TicTacToe::Player ? "PLAYER WINS!" :
-                          gameResult == TicTacToe::AI ? "AI WINS!" : "DRAW GAME!";
-    const uint16_t color = gameResult == TicTacToe::AI ? Red : Cyan;
-    tft.fillRoundRect(12, 89, 216, 73, 5, Surface);
-    tft.drawRoundRect(12, 89, 216, 73, 5, resultBright ? color : Magenta);
-    centered(107, message, resultBright ? White : color, 2);
-    centered(140, "PRESS ANY KEY TO RESTART", Muted);
-}
-
-void drawScreen() {
-    tft.fillRect(0, 0, 240, 240, Background);
-    drawHeader(gameMode ? "TIC-TAC-TOE VS AI" : "MACRO PAD / READY");
-    if (gameMode) {
-        drawGameBoard();
-        if (gameResult != TicTacToe::Empty) drawResult();
-    } else {
-        for (int i = 0; i < 9; ++i) drawMacroKey(i);
-        drawVolume();
-    }
-    centered(230, "HOLD KNOB 1.5s : SWITCH MODE", Muted);
+void renderScreen() {
+    if (!displayReady) return;
+    display.clearDisplay();
+    textAt(0, 1, "PRIMADON | TacPad");
+    if (!transitioning || (transitionFrame & 1) == 0)
+        display.drawFastHLine(0, 11, ScreenWidth, SSD1306_WHITE);
+    if (gameMode) drawGame();
+    else drawMacro();
+    display.display();
 }
 
 void resetGame() {
     for (char& cell : board) cell = TicTacToe::Empty;
     gameResult = TicTacToe::Empty;
+    screenDirty = true;
 }
 
 void switchMode(uint32_t now) {
     gameMode = !gameMode;
     resetGame();
-    for (bool& active : highlighted) active = false;
-    keysArmed = false;  // Keys held across a mode change cannot place a move.
+    macroFlash = false;
+    keysArmed = false;  // Release all keys before accepting a new mode's input.
     transitioning = true;
     transitionAt = now;
-    transitionLine = -1;
-    drawScreen();
+    transitionFrame = 0;
     Serial.println(gameMode ? "MODE: TIC-TAC-TOE VS AI" : "MODE: MACRO PAD");
 }
 
 void handleGameKey(int index, uint32_t now) {
     if (gameResult != TicTacToe::Empty) {
         resetGame();
-        drawScreen();
-        keysArmed = false;  // The restart press never also places an X.
+        keysArmed = false;  // A restart press cannot also place an X.
         Serial.println("GAME: NEW ROUND - PLAYER X STARTS");
         return;
     }
     if (board[index] != TicTacToe::Empty) return;
     board[index] = TicTacToe::Player;
-    drawGameCell(index);
     Serial.printf("PLAYER X: %d\n", index + 1);
     gameResult = TicTacToe::outcome(board);
     if (gameResult == TicTacToe::Empty) {
-        // Bounded nine-cell search, alpha-beta pruning, no artificial delay.
         const int move = TicTacToe::bestMove(board);
         if (move >= 0) {
             board[move] = TicTacToe::AI;
-            drawGameCell(move);
             Serial.printf("AI O: %d\n", move + 1);
         }
         gameResult = TicTacToe::outcome(board);
     }
+    screenDirty = true;
     if (gameResult != TicTacToe::Empty) {
         keysArmed = false;
         resultBright = true;
         resultFrameAt = now;
-        drawResult();
+        uint16_t& score = gameResult == TicTacToe::Player ? playerScore :
+                          gameResult == TicTacToe::AI ? aiScore : drawScore;
+        if (score < UINT16_MAX) ++score;
         Serial.println(gameResult == TicTacToe::Player ? "PLAYER WINS!" :
                        gameResult == TicTacToe::AI ? "AI WINS!" : "DRAW GAME!");
+        Serial.printf("SCORE: YOU=%u AI=%u DRAW=%u\n",
+                      unsigned(playerScore), unsigned(aiScore), unsigned(drawScore));
     }
 }
 }  // namespace
@@ -261,19 +226,22 @@ void setup() {
     encoderState = (digitalRead(EncoderCLK) << 1) | digitalRead(EncoderDT);
     attachInterrupt(digitalPinToInterrupt(EncoderCLK), readEncoder, CHANGE);
     attachInterrupt(digitalPinToInterrupt(EncoderDT), readEncoder, CHANGE);
-    SPI.begin(TftSCLK, -1, TftMOSI, TftCS);
-#ifdef TACPAD_ILI9341
-    tft.begin(40000000);
-    tft.setRotation(0);
-    tft.fillScreen(Background);  // ILI9341 has an unused extra 80 pixels below UI.
-#else
-    tft.init(240, 240, SPI_MODE0);
-    tft.setRotation(0);
-#endif
-    tft.setTextWrap(false);
+
+    Wire.begin(OledSDA, OledSCL);
+    Wire.setClock(400000);
+    Wire.setTimeOut(20);
+    Wire.beginTransmission(OledAddress);
+    if (Wire.endTransmission() == 0)
+        displayReady = display.begin(SSD1306_SWITCHCAPVCC, OledAddress, true, false);
+    if (!displayReady)
+        Serial.println("OLED ERROR: check SSD1306 0x3C, SDA=21, SCL=22. Serial controls remain active.");
+    display.setTextSize(1);
+    display.setTextWrap(false);
     resetGame();
-    drawScreen();
-    Serial.println("PRIMADON | TacPad-9 | READY | MACRO PAD");
+    renderScreen();
+    lastFrameAt = millis();
+    screenDirty = false;
+    Serial.println("PRIMADON | TacPad-9 | READY | MACRO PAD | OLED 128x64");
     Serial.println("Hold encoder SW for 1500ms to switch modes.");
     Serial.println("VOLUME: 50%");
 }
@@ -304,51 +272,52 @@ void loop() {
         const int next = constrain(volume + steps * 5, 0, 100);
         if (next != volume) {
             volume = next;
-            drawVolume();
+            screenDirty = true;
             Serial.printf("VOLUME: %d%%\n", volume);
         }
     }
 
-    if (transitioning) {
-        const uint32_t elapsed = now - transitionAt;
-        if (elapsed >= TransitionMs) {
-            transitioning = false;
-            tft.drawRect(0, 0, 240, 240, Background);
-        } else {
-            const int frame = elapsed / 40;
-            if (frame != transitionLine) {
-                transitionLine = frame;
-                tft.drawRect(0, 0, 240, 240, (frame & 1) ? Cyan : Magenta);
-            }
-        }
-        return;
-    }
     if (!keysArmed && allReleased) keysArmed = true;
     if (keysArmed) {
         for (int i = 0; i < 9; ++i) {
             if (!pressed[i]) continue;
             if (gameMode) {
                 handleGameKey(i, now);
-                break;  // At most one human turn per input scan.
+                break;
             }
-            highlighted[i] = true;
-            highlightAt[i] = now;
-            drawMacroKey(i);
+            lastMacro = i;
+            macroFlash = true;
+            macroPressedAt = now;
+            screenDirty = true;
             Serial.printf("MACRO %d [%s]: %s\n", i + 1, Labels[i], Shortcuts[i]);
         }
     }
-    if (!gameMode) {
-        for (int i = 0; i < 9; ++i) {
-            if (highlighted[i] && !keys[i].down &&
-                uint32_t(now - highlightAt[i]) >= HighlightMs) {
-                highlighted[i] = false;
-                drawMacroKey(i);
-            }
-        }
-    } else if (gameResult != TicTacToe::Empty &&
-               uint32_t(now - resultFrameAt) >= ResultFrameMs) {
+    if (!gameMode && macroFlash && !keys[lastMacro].down &&
+        uint32_t(now - macroPressedAt) >= HighlightMs) {
+        macroFlash = false;
+        screenDirty = true;
+    }
+    if (gameMode && gameResult != TicTacToe::Empty &&
+        uint32_t(now - resultFrameAt) >= ResultFrameMs) {
         resultFrameAt = now;
         resultBright = !resultBright;
-        drawResult();
+        screenDirty = true;
+    }
+    if (transitioning) {
+        const uint32_t elapsed = now - transitionAt;
+        const int frame = elapsed / 40;
+        if (elapsed >= TransitionMs) {
+            transitioning = false;
+            screenDirty = true;
+        } else if (frame != transitionFrame) {
+            transitionFrame = frame;
+            screenDirty = true;
+        }
+    }
+    // Send at most one buffered I2C frame per 33ms, and only when UI changes.
+    if (screenDirty && uint32_t(now - lastFrameAt) >= FrameMs) {
+        renderScreen();
+        lastFrameAt = millis();
+        screenDirty = false;
     }
 }
