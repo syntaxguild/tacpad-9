@@ -17,7 +17,7 @@ Nine tactile keys. One rotary control. A little room to play.
 
 </div>
 
-![Tacpad 9 — Primadon studio render, 16:9](docs/assets/tacpad9-wide.png)
+![Tacpad 9 — Primadon launch campaign, 16:9](docs/assets/tacpad9-hero.png)
 
 Tacpad 9 brings everyday keyboard shortcuts and media controls into an 85 × 120 mm enclosure. A horizontal OLED keeps feedback quiet; a knurled rotary knob handles volume; a moss-green centre key and the original Primadon mascot give the otherwise restrained industrial form its identity.
 
@@ -25,7 +25,7 @@ This repository connects **parametric Blender geometry, serviceable internal mou
 
 **Behind the design:** read the [case study](docs/case-study.md) for the brief, packaging/budget decisions, firmware architecture and the evidence behind the prototype.
 
-> **Prototype status:** software builds and digital geometry checks pass. The images are actual Blender renders. Physical print fit, delivered-component dimensions and USB operation on a real board remain to be tested. See the [validation record](docs/validation.md).
+> **Prototype status:** software builds and digital geometry checks pass. The hero is an AI-generated campaign visual based on the CAD; the assembly images are actual Blender renders. Physical print fit, delivered-component dimensions and USB operation on a real board remain to be tested. See the [validation record](docs/validation.md).
 
 ## A small object, considered inside and out
 
