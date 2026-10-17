@@ -32,7 +32,7 @@ int main() {
         drain();
     }
     const size_t before=TacpadHid::consumer.reports.size();
-    volume=100; encoderSteps=2; tick(1); drain();
+    encoderSteps=2; tick(1); drain();
     encoderSteps=-1; tick(1); drain();
     std::vector<uint16_t> nonzero;
     for (size_t i=before; i<TacpadHid::consumer.reports.size(); ++i)

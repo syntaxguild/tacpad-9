@@ -3,6 +3,7 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <Preferences.h>
 #include "tictactoe.h"
 #include "board_config.h"
 #include "hid_output.h"
@@ -48,12 +49,18 @@ struct Button {
 };
 
 Button keys[9], modeButton;
+Preferences preferences;
+uint8_t activeProfile = TacpadKeymap::Coding;
+bool profileStoreReady = false, profileSaved = true, encoderTapArmed = false;
 bool gameMode = false, holdConsumed = false, keysArmed = true;
 bool displayReady = false, screenDirty = true;
 bool transitioning = false, resultBright = true, macroFlash = false;
 uint32_t holdStartedAt = 0, transitionAt = 0, resultFrameAt = 0;
 uint32_t macroPressedAt = 0, lastFrameAt = 0;
-int transitionFrame = -1, lastMacro = -1, volume = 50;
+int transitionFrame = -1, lastMacro = -1;
+#if !TACPAD_USB_HID
+int volume = 50;
+#endif
 char board[9];
 char gameResult = TicTacToe::Empty;
 // Session counters persist across rounds/mode changes; saturate at 65535.
@@ -65,6 +72,29 @@ portMUX_TYPE encoderMux = portMUX_INITIALIZER_UNLOCKED;
 volatile int encoderSteps = 0;
 volatile int encoderQuarterSteps = 0;
 volatile uint8_t encoderState = 3;
+
+void loadProfile() {
+    preferences.end();
+    profileStoreReady = preferences.begin("tacpad9", false);
+    const uint8_t saved = profileStoreReady ? preferences.getUChar("profile", TacpadKeymap::Coding) : uint8_t(TacpadKeymap::Coding);
+    activeProfile = saved < TacpadKeymap::Count ? saved : uint8_t(TacpadKeymap::Coding);
+    profileSaved = profileStoreReady;
+    if (!profileStoreReady) Serial.println("PROFILE: storage unavailable; using RAM only");
+    else if (saved >= TacpadKeymap::Count) Serial.println("PROFILE: unknown stored ID; using CODING");
+}
+
+void nextProfile() {
+    TacpadHid::cancel();
+    activeProfile = (activeProfile + 1) % TacpadKeymap::Count;
+    // Commit once per deliberate selection, never per loop tick or volume detent.
+    profileSaved = profileStoreReady && preferences.putUChar("profile", activeProfile) == 1;
+    lastMacro = -1;
+    macroFlash = false;
+    keysArmed = false;
+    screenDirty = true;
+    Serial.printf("PROFILE: %s%s\n", TacpadKeymap::profile(activeProfile).name,
+                  profileSaved ? " (saved)" : " (RAM only; save failed)");
+}
 
 void IRAM_ATTR readEncoder() {
     const uint8_t next = (digitalRead(EncoderCLK) << 1) | digitalRead(EncoderDT);
@@ -99,7 +129,7 @@ void drawMacro() {
     } else {
         char line[24];
         snprintf(line, sizeof(line), "%d:%s", lastMacro + 1,
-                 TacpadKeymap::profile(TacpadKeymap::Coding).keys[lastMacro].label);
+                 TacpadKeymap::profile(activeProfile).keys[lastMacro].label);
         if (macroFlash) display.fillRect(0, 11, 100, 10, SSD1306_WHITE);
         textAt(0, 12, line, macroFlash ? SSD1306_BLACK : SSD1306_WHITE);
     }
@@ -154,7 +184,12 @@ void renderScreen() {
     if (flashHeader) display.fillRect(0, 0, SCREEN_WIDTH, 8, SSD1306_WHITE);
     const uint16_t headerColor = flashHeader ? SSD1306_BLACK : SSD1306_WHITE;
     textAt(0, 0, "TACPAD 9", headerColor);
-    textAt(98, 0, gameMode ? "XO AI" : "MACRO", headerColor);
+    if (gameMode) textAt(98, 0, "XO AI", headerColor);
+    else {
+        char name[10];
+        snprintf(name, sizeof(name), "%s%s", TacpadKeymap::profile(activeProfile).name, profileSaved ? "" : "*");
+        textAt(SCREEN_WIDTH - int(strlen(name)) * 6, 0, name, headerColor);
+    }
     if (!gameMode) display.drawFastHLine(0, 9, SCREEN_WIDTH, SSD1306_WHITE);
     if (gameMode) drawGame();
     else drawMacro();
@@ -216,6 +251,7 @@ void handleGameKey(int index, uint32_t now) {
 
 void setup() {
     Serial.begin(115200);
+    loadProfile();
     TacpadHid::begin();
     for (int i = 0; i < 9; ++i) keys[i].begin(KeyPins[i]);
     modeButton.begin(EncoderSW);
@@ -242,6 +278,7 @@ void setup() {
     screenDirty = false;
     Serial.println("Primadon | Tacpad 9 | v" TACPAD_VERSION " | READY | MACRO PAD | OLED 128x32");
     Serial.println("Hold encoder SW for 1500ms to switch modes.");
+    Serial.printf("PROFILE: %s | Tap encoder to cycle profiles in Macro mode.\n", TacpadKeymap::profile(activeProfile).name);
     Serial.println(TACPAD_USB_HID ? "USB HID: KEYBOARD + CONSUMER CONTROL" : "SIMULATION: VOLUME 50%");
 }
 
@@ -254,9 +291,18 @@ void loop() {
         pressed[i] = keys[i].update(now);
         if (keys[i].raw || keys[i].down) allReleased = false;
     }
+    const bool wasModeDown = modeButton.down;
     const bool modePressed = modeButton.update(now);
-    if (modePressed) holdStartedAt = now;
-    if (!modeButton.down) holdConsumed = false;
+    if (modePressed) {
+        holdStartedAt = now;
+        holdConsumed = false;
+        encoderTapArmed = true;
+    }
+    if (wasModeDown && !modeButton.down) {
+        if (encoderTapArmed && !holdConsumed && !gameMode) nextProfile();
+        encoderTapArmed = false;
+        holdConsumed = false;
+    }
     if (modeButton.down && modeButton.raw && !holdConsumed &&
         uint32_t(now - holdStartedAt) >= HoldMs) {
         holdConsumed = true;
@@ -295,11 +341,11 @@ void loop() {
             macroFlash = true;
             macroPressedAt = now;
             screenDirty = true;
-            const auto& binding = TacpadKeymap::profile(TacpadKeymap::Coding).keys[i];
+            const auto& binding = TacpadKeymap::profile(activeProfile).keys[i];
             char shortcut[32];
             TacpadKeymap::shortcut(binding, shortcut, sizeof(shortcut));
             Serial.printf("MACRO %d [%s]: %s\n", i + 1, binding.label, shortcut);
-            TacpadHid::macro(i);
+            TacpadHid::macro(i, activeProfile);
         }
     }
     if (!gameMode && macroFlash && !keys[lastMacro].down &&

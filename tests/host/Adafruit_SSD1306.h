@@ -1,10 +1,12 @@
 #pragma once
 #include "Wire.h"
 #include "board_config.h"
+#include <vector>
 constexpr uint16_t SSD1306_BLACK = 0, SSD1306_WHITE = 1;
 constexpr uint8_t SSD1306_SWITCHCAPVCC = 2;
 struct Adafruit_SSD1306 {
     int width, height, cursorX = 0, cursorY = 0, frames = 0, initCalls = 0;
+    std::vector<std::string> texts;
     Adafruit_SSD1306(int w, int h, TwoWire*, int, uint32_t, uint32_t) : width(w), height(h) {}
     bool begin(uint8_t supply, uint8_t address) {
         assert(Wire.sda == TacpadBoard::Sda && Wire.scl == TacpadBoard::Scl);
@@ -20,8 +22,11 @@ struct Adafruit_SSD1306 {
     void setTextWrap(bool wrap) { assert(!wrap); }
     void setTextColor(uint16_t) {}
     void setCursor(int x, int y) { cursorX = x; cursorY = y; }
-    void print(const char* text) { bounds(cursorX, cursorY, std::strlen(text) * 6, 8); }
-    void clearDisplay() {}
+    void print(const char* text) {
+        bounds(cursorX, cursorY, std::strlen(text) * 6, 8);
+        texts.push_back(text);
+    }
+    void clearDisplay() { texts.clear(); }
     void display() { ++frames; }
     void fillRect(int x, int y, int w, int h, uint16_t) { bounds(x, y, w, h); }
     void drawRect(int x, int y, int w, int h, uint16_t) { bounds(x, y, w, h); }

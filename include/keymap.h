@@ -8,7 +8,8 @@ enum Modifier : uint8_t { None = 0, Ctrl = 1, Shift = 2, Alt = 4 };
 // Arduino Keyboard's encoded non-printing keys (checked against the USB header).
 constexpr uint8_t Tab = 0xB3, F12 = 0xCD;
 constexpr uint8_t KeyCount = 9;
-enum ProfileId : uint8_t { Coding, Count };
+// Stored IDs are stable: append new profiles rather than reordering these.
+enum ProfileId : uint8_t { Coding, Blender, Media, Count };
 
 struct Binding {
     const char* label;
@@ -35,6 +36,28 @@ constexpr Profile Profiles[] = {
         {"PLAY", None, 0, 0xCD},
         {"MUTE", None, 0, 0xE2},
         {"TERMINAL", Ctrl, '`', 0},
+    }},
+    {"BLENDER", {
+        {"MOVE", None, 'g', 0},
+        {"ROTATE", None, 'r', 0},
+        {"SCALE", None, 's', 0},
+        {"EXTRUDE", None, 'e', 0},
+        {"UNDO", Ctrl, 'z', 0},
+        {"REDO", Ctrl | Shift, 'z', 0},
+        {"EDIT", None, Tab, 0},
+        {"DESELECT", Alt, 'a', 0},
+        {"RENDER", None, F12, 0},
+    }},
+    {"MEDIA", {
+        {"PREVIOUS", None, 0, 0xB6},
+        {"PLAY", None, 0, 0xCD},
+        {"NEXT", None, 0, 0xB5},
+        VolumeDown,
+        {"MUTE", None, 0, 0xE2},
+        VolumeUp,
+        {"STOP", None, 0, 0xB7},
+        {"REWIND", None, 0, 0xB4},
+        {"FORWARD", None, 0, 0xB3},
     }},
 };
 static_assert(sizeof(Profiles) / sizeof(Profiles[0]) == Count, "Profile count mismatch");
