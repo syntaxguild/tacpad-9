@@ -1,10 +1,10 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "blender": "4.0.2",
   "stage": "digital checks only; physical fit and USB host enumeration pending",
   "source_sha256": {
     "model.py": "5231788285b16ec1e27219a7039d5c30d4c449d36f3170aef5eb0f1a10bbb984",
-    "reference.json": "bda9431dc13f2cbc6cf324d6a075e0ff016d5c551ebee49d08e85f9ef493977a"
+    "reference.json": "1df6957a104b050a33cffa29ebd6088a7b09426a6422651cec0da6b398ef3114"
   },
   "parts": {
     "case": {

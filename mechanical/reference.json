@@ -1,23 +1,40 @@
 {
   "product": "Tacpad 9",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "units": "mm",
   "stage": "digital prototype; purchased-part fit and USB enumeration not physically tested",
   "controller": {
     "name": "ESP32-S3-Zero-style FH4R2, unpopulated castellated headers",
-    "size": [18.0, 23.5, 1.6],
-    "center": [-15.0, 44.5],
+    "size": [
+      18.0,
+      23.5,
+      1.6
+    ],
+    "center": [
+      -15.0,
+      44.5
+    ],
     "pcb_bottom": 3.8,
     "component_top": 8.8,
     "usb_center_z": 7.2,
     "usb_overhang": 1.4,
-    "sources": ["https://www.waveshare.com/wiki/ESP32-S3-Zero", "https://files.waveshare.com/wiki/ESP32-S3-Zero/ESP32-S3-Zero-Sch.pdf"],
+    "sources": [
+      "https://www.waveshare.com/wiki/ESP32-S3-Zero",
+      "https://files.waveshare.com/wiki/ESP32-S3-Zero/ESP32-S3-Zero-Sch.pdf"
+    ],
     "note": "Budget clones must match this outline and pinout. Verify the delivered PCB and USB projection; the cradle clearance is parametric."
   },
   "display": {
     "name": "0.91-inch SSD1306 128x32 I2C module, direct-soldered wires",
-    "size": [37.2, 12.2, 1.6],
-    "active": [22.4, 5.6],
+    "size": [
+      37.2,
+      12.2,
+      1.6
+    ],
+    "active": [
+      22.4,
+      5.6
+    ],
     "pcb_bottom": 17.0,
     "component_bottom": 15.7,
     "glass_top": 20.3,
@@ -26,7 +43,11 @@
   },
   "encoder": {
     "name": "KY-040 / EC11 6 mm D-shaft with push switch",
-    "pcb_size": [26.0, 20.0, 1.6],
+    "pcb_size": [
+      26.0,
+      20.0,
+      1.6
+    ],
     "pcb_bottom": 8.0,
     "housing_top": 17.1,
     "bushing_diameter": 7.0,

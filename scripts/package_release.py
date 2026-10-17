@@ -61,11 +61,14 @@ extra['Tacpad9-merged.bin']=bytes(merged)
 extra['flash-layout.json']=json.dumps({'chip':'esp32s3','flash_size':'4MB','version':version,'offsets':offsets},indent=2)
 extra['READ-ME.txt']='''Tacpad 9 / ESP32-S3 FH4R2 - digital prototype, physical USB testing pending.
 Use a data cable. Hold BOOT while plugging in for the first flash.
+Tap/release encoder: Coding / Blender / Media; hold 1.5 s: Macro / XO.
+Profile choice is stored in NVS; a * on OLED means the save failed.
 Install esptool and run, replacing COM5 with your actual port:
 python -m esptool --chip esp32s3 --port COM5 write_flash 0x0 Tacpad9-merged.bin
 Reset/replug after flashing. This merged image contains bootloader, partition
  table, initial OTA data and application. The separate application firmware.bin
 belongs at 0x10000, not 0x0. Do not flash this bundle to a classic ESP32 or C3.
+Writing this full merged image can reset saved NVS settings, including profile.
 Recommended alternative: build/upload the source with pio run -e tacpad_s3 -t upload.
 '''
 outputs.append(bundle('USB-Firmware',[],extra))

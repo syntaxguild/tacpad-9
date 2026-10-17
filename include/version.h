@@ -1,2 +1,2 @@
 #pragma once
-#define TACPAD_VERSION "0.2.0"
+#define TACPAD_VERSION "0.3.0"

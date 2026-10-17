@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0 — 2026-10-17 · workflow profiles
+
+- Centralize labels, modifier/key combinations and consumer usages in `include/keymap.h`; OLED, Serial and HID share the same bindings.
+- Add Coding, Blender and Media profiles with 27 total mappings. Tap/release the encoder to cycle; retain the 1.5-second Macro/XO hold.
+- Store the selected profile with Preferences/NVS once per change, with Coding fallback and a visible `*` when saving is unavailable.
+- Release queued/held USB actions during profile changes and require physical keys to be released before accepting new-profile input.
+- Check all 27 expected reports, profile gestures, saved/invalid values, failed storage, held-key gating and timer rollover using actual firmware with host doubles.
+- Generate the keymap reference from compiled bindings and reject documentation drift in the existing host test runner.
+- Add a portfolio case study connecting the brief, decisions, implementation and evidence. Industrial geometry and product renders are carried forward from v0.2.0.
+
+Real-board USB, flash retention/timing and physical fit remain pending.
+
 ## 0.2.0 — 2026-10-17 · digital prototype
 
 - Add ESP32-S3 native USB keyboard and consumer controls, with disconnect/mode-change release and bounded nonblocking report scheduling.

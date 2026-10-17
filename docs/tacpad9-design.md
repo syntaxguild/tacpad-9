@@ -8,6 +8,6 @@ The current model, manufacturing interfaces and render commands are documented i
 - [Service / exploded photography](../mechanical/service.py)
 - [Original Primadon mascot](assets/primadon-logo.png)
 - [Square render](assets/tacpad9-square.png) / [16:9 render](assets/tacpad9-wide.png)
-- [Versioned Blender and mesh downloads](https://github.com/syntaxguild/tacpad-9/releases/tag/v0.2.0)
+- [Versioned Blender and mesh downloads](https://github.com/syntaxguild/tacpad-9/releases/tag/v0.3.0)
 
-The original root-level scripts and superseded binary exports were reorganized for v0.2.0. Their earlier versions remain available in Git history.
+The original root-level scripts and superseded binary exports were reorganized for v0.3.0. Their earlier versions remain available in Git history.
