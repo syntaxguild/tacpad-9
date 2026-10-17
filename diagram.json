@@ -4,8 +4,8 @@
   "editor": "wokwi",
   "parts": [
     { "type": "wokwi-text", "id": "brand", "top": -95, "left": 0, "attrs": { "text": "PRIMADON / TacPad-9", "color": "#35414a", "fontSize": "26" } },
-    { "type": "wokwi-text", "id": "oledLabel", "top": -40, "left": 0, "attrs": { "text": "01 / OLED STATUS", "color": "#667078" } },
-    { "type": "board-ssd1306", "id": "oled", "top": 0, "left": 0, "attrs": { "i2cAddress": "0x3c", "height": "32" } },
+    { "type": "wokwi-text", "id": "oledLabel", "top": -40, "left": 0, "attrs": { "text": "01 / OLED 128x32", "color": "#667078" } },
+    { "type": "chip-primadon-oled", "id": "oled", "top": 0, "left": 0, "attrs": {} },
     { "type": "wokwi-text", "id": "knobLabel", "top": -40, "left": 250, "attrs": { "text": "02 / VOLUME + MODE", "color": "#667078" } },
     { "type": "wokwi-ky-040", "id": "encoder", "top": 0, "left": 270, "attrs": {} },
     { "type": "wokwi-pushbutton", "id": "btn1", "top": 160, "left": 0, "attrs": { "color": "#546e7a", "label": "Btn1 / COPY", "key": "1" } },

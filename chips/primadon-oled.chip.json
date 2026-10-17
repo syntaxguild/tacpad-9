@@ -1,0 +1,6 @@
+{
+  "name": "Primadon OLED 128x32",
+  "author": "Primadon",
+  "pins": ["VCC", "GND", "SCL", "SDA"],
+  "display": { "width": 256, "height": 64 }
+}
