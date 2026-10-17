@@ -4,13 +4,15 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include "tictactoe.h"
+#include "board_config.h"
+#include "hid_output.h"
+#include "version.h"
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
 
 namespace {
-constexpr uint8_t KeyPins[9] = {13, 12, 14, 27, 26, 25, 33, 15, 16};
-constexpr uint8_t EncoderDT = 34, EncoderCLK = 35, EncoderSW = 32;
+using namespace TacpadBoard;
 constexpr int BoardX = 0, BoardY = 8, CellSize = 8;
 constexpr uint32_t DebounceMs = 20, HoldMs = 1500, HighlightMs = 140;
 constexpr uint32_t TransitionMs = 240, ResultFrameMs = 300, FrameMs = 33;
@@ -18,7 +20,7 @@ const char* const Labels[9] = {
     "COPY", "PASTE", "BUILD", "BLENDER", "UNDO", "REDO", "PLAY", "MUTE", "TERMINAL"
 };
 const char* const Shortcuts[9] = {
-    "CTRL+C", "CTRL+V", "CTRL+SHIFT+B", "LAUNCH BLENDER", "CTRL+Z",
+    "CTRL+C", "CTRL+V", "CTRL+SHIFT+B", "CTRL+ALT+SHIFT+B", "CTRL+Z",
     "CTRL+Y", "MEDIA PLAY/PAUSE", "MEDIA MUTE", "CTRL+`"
 };
 
@@ -107,11 +109,16 @@ void drawMacro() {
         if (macroFlash) display.fillRect(0, 11, 100, 10, SSD1306_WHITE);
         textAt(0, 12, line, macroFlash ? SSD1306_BLACK : SSD1306_WHITE);
     }
+#if TACPAD_USB_HID
+    textAt(104, 12, "USB");
+    textAt(0, 24, "ENC: HOST VOLUME");
+#else
     char level[8];
     snprintf(level, sizeof(level), "%3d%%", volume);
     textAt(104, 12, level);
     display.drawRect(0, 24, SCREEN_WIDTH, 7, SSD1306_WHITE);
     display.fillRect(2, 26, (SCREEN_WIDTH - 4) * volume / 100, 3, SSD1306_WHITE);
+#endif
 }
 
 void drawGame() {
@@ -152,7 +159,7 @@ void renderScreen() {
     const bool flashHeader = transitioning && (transitionFrame & 1) != 0;
     if (flashHeader) display.fillRect(0, 0, SCREEN_WIDTH, 8, SSD1306_WHITE);
     const uint16_t headerColor = flashHeader ? SSD1306_BLACK : SSD1306_WHITE;
-    textAt(0, 0, "PRIMADON", headerColor);
+    textAt(0, 0, "TACPAD 9", headerColor);
     textAt(98, 0, gameMode ? "XO AI" : "MACRO", headerColor);
     if (!gameMode) display.drawFastHLine(0, 9, SCREEN_WIDTH, SSD1306_WHITE);
     if (gameMode) drawGame();
@@ -167,6 +174,7 @@ void resetGame() {
 }
 
 void switchMode(uint32_t now) {
+    TacpadHid::cancel();
     gameMode = !gameMode;
     resetGame();
     macroFlash = false;
@@ -214,16 +222,17 @@ void handleGameKey(int index, uint32_t now) {
 
 void setup() {
     Serial.begin(115200);
+    TacpadHid::begin();
     for (int i = 0; i < 9; ++i) keys[i].begin(KeyPins[i]);
     modeButton.begin(EncoderSW);
     holdStartedAt = millis();
-    pinMode(EncoderDT, INPUT);  // External 10k pull-up to 3V3.
-    pinMode(EncoderCLK, INPUT);
+    pinMode(EncoderDT, EncoderPullups ? INPUT_PULLUP : INPUT);
+    pinMode(EncoderCLK, EncoderPullups ? INPUT_PULLUP : INPUT);
     encoderState = (digitalRead(EncoderCLK) << 1) | digitalRead(EncoderDT);
     attachInterrupt(digitalPinToInterrupt(EncoderCLK), readEncoder, CHANGE);
     attachInterrupt(digitalPinToInterrupt(EncoderDT), readEncoder, CHANGE);
 
-    Wire.begin(21, 22);
+    Wire.begin(Sda, Scl);
     Wire.setClock(400000);
     Wire.setTimeOut(50);
     // Always initialize the controller. A separate address-only probe must not
@@ -237,13 +246,14 @@ void setup() {
     renderScreen();
     lastFrameAt = millis();
     screenDirty = false;
-    Serial.println("PRIMADON | TacPad-9 | READY | MACRO PAD | OLED 128x32");
+    Serial.println("Primadon | Tacpad 9 | v" TACPAD_VERSION " | READY | MACRO PAD | OLED 128x32");
     Serial.println("Hold encoder SW for 1500ms to switch modes.");
-    Serial.println("VOLUME: 50%");
+    Serial.println(TACPAD_USB_HID ? "USB HID: KEYBOARD + CONSUMER CONTROL" : "SIMULATION: VOLUME 50%");
 }
 
 void loop() {
     const uint32_t now = millis();
+    TacpadHid::update(now);
     bool pressed[9];
     bool allReleased = true;
     for (int i = 0; i < 9; ++i) {
@@ -265,12 +275,18 @@ void loop() {
     encoderSteps = 0;
     portEXIT_CRITICAL(&encoderMux);
     if (!gameMode && steps != 0) {
+#if TACPAD_USB_HID
+        TacpadHid::volume(steps);
+        screenDirty = true;
+        Serial.printf("HOST VOLUME: %+d detents\n", steps);
+#else
         const int next = constrain(volume + steps * 5, 0, 100);
         if (next != volume) {
             volume = next;
             screenDirty = true;
             Serial.printf("VOLUME: %d%%\n", volume);
         }
+#endif
     }
 
     if (!keysArmed && allReleased) keysArmed = true;
@@ -286,6 +302,7 @@ void loop() {
             macroPressedAt = now;
             screenDirty = true;
             Serial.printf("MACRO %d [%s]: %s\n", i + 1, Labels[i], Shortcuts[i]);
+            TacpadHid::macro(i);
         }
     }
     if (!gameMode && macroFlash && !keys[lastMacro].down &&
@@ -316,4 +333,5 @@ void loop() {
         lastFrameAt = millis();
         screenDirty = false;
     }
+    TacpadHid::update(now);
 }

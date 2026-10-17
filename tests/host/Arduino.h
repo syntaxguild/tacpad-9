@@ -16,7 +16,7 @@ using portMUX_TYPE = int;
 #define portENTER_CRITICAL_ISR(mux) ((void)(mux))
 #define portEXIT_CRITICAL_ISR(mux) ((void)(mux))
 uint32_t testMillis = 0;
-int testPins[40];
+int testPins[64];
 uint32_t millis() { return testMillis; }
 void pinMode(uint8_t, int) {}
 int digitalRead(uint8_t pin) { return testPins[pin]; }
